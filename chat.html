@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Мессенджер - Вход</title>
+    <style>
+        body { font-family: Arial; margin: 0; display: flex; height: 100vh; background: #f0f0f0; }
+        
+        /* Окно авторизации */
+        #auth {
+            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex; align-items: center; justify-content: center;
+            z-index: 1000;
+        }
+        #auth-box {
+            background: white; padding: 40px; border-radius: 10px;
+            width: 350px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+        }
+        #auth-box h2 { margin-top: 0; color: #333; text-align: center; }
+        .tabs {
+            display: flex; margin-bottom: 20px;
+            border-bottom: 2px solid #eee;
+        }
+        .tab {
+            flex: 1; padding: 10px; text-align: center;
+            cursor: pointer; color: #666;
+        }
+        .tab.active {
+            color: #667eea; border-bottom: 2px solid #667eea;
+            margin-bottom: -2px;
+        }
+        .auth-form { display: none; }
+        .auth-form.active { display: block; }
+        
+        input[type="text"], input[type="password"] {
+            width: 100%; padding: 12px; margin: 10px 0;
+            border: 1px solid #ddd; border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .btn {
+            width: 100%; padding: 12px; background: #667eea;
+            color: white; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 16px; margin-top: 10px;
+        }
+        .btn:hover { background: #5568d3; }
+        .error { color: #e74c3c; font-size: 14px; margin-top: 10px; text-align: center; }
+        .success { color: #27ae60; font-size: 14px; margin-top: 10px; text-align: center; }
+        
+        /* Чат (тот же стиль, что был) */
+        #sidebar { width: 300px; background: white; border-right: 1px solid #ccc; overflow-y: auto; display: none; }
+        #chat { flex: 1; display: flex; flex-direction: column; display: none; }
+        #messages { flex: 1; overflow-y: auto; padding: 20px; background: #e5ddd5; }
+        .message { margin: 10px 0; padding: 10px; border-radius: 10px; max-width: 70%; }
+        .in { background: white; margin-right: auto; }
+        .out { background: #dcf8c6; margin-left: auto; text-align: right; }
+        #input { padding: 10px; background: #f0f0f0; display: flex; }
+        .contact { padding: 15px; cursor: pointer; border-bottom: 1px solid #ddd; }
+        .contact:hover { background: #f5f5f5; }
+        .contact.active { background: #e3f2fd; }
+        button { padding: 10px 20px; background: #075e54; color: white; border: none; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+<!-- Окно авторизации -->
+<div id="auth">
+    <div id="auth-box">
+        <h2>💬 Мессенджер</h2>
+        
+        <div class="tabs">
+            <div class="tab active" onclick="showTab('login')">Вход</div>
+            <div class="tab" onclick="showTab('register')">Регистрация</div>
+        </div>
+        
+        <!-- Форма входа -->
+        <div id="login-form" class="auth-form active">
+            <input type="text" id="login-username" placeholder="Имя пользователя">
+            <input type="password" id="login-password" placeholder="Пароль">
+            <button class="btn" onclick="doLogin()">Войти</button>
+            <div id="login-error" class="error"></div>
+        </div>
+        
+        <!-- Форма регистрации -->
+        <div id="register-form" class="auth-form">
+            <input type="text" id="reg-username" placeholder="Придумайте имя">
+            <input type="password" id="reg-password" placeholder="Придумайте пароль">
+            <input type="password" id="reg-password2" placeholder="Повторите пароль">
+            <button class="btn" onclick="doRegister()">Зарегистрироваться</button>
+            <div id="reg-error" class="error"></div>
+            <div id="reg-success" class="success"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Чат -->
+<div id="sidebar">
+    <div style="padding: 20px; background: #075e54; color: white;">
+        💬 Чаты <button onclick="showCreateGroup()" style="float:right;">+</button>
+    </div>
+    <div style="padding: 10px; background: #f0f0f0;">
+        Вы: <b><span id="my-name"></span></b>
+        <button onclick="logout()" style="float:right;font-size:12px;">Выход</button>
+    </div>
+    <div id="contacts"></div>
+</div>
+
+<div id="chat">
+    <div id="header" style="padding: 20px; background: #f0f0f0; font-weight: bold;">Выберите чат</div>
+    <div id="messages"></div>
+    <div id="input" style="display:none">
+        <input type="text" id="msg" placeholder="Сообщение..." style="flex:1;padding:10px;">
+        <button onclick="send()">Отправить</button>
+    </div>
+</div>
+
+<script>
+var ws;
+var myName = '';
+var currentChat = '';
+var isGroup = false;
+
+// Переключение вкладок Вход/Регистрация
+function showTab(tab) {
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.auth-form').forEach(f => f.classList.remove('active'));
+    
+    if (tab === 'login') {
+        document.querySelector('.tab:first-child').classList.add('active');
+        document.getElementById('login-form').classList.add('active');
+    } else {
+        document.querySelector('.tab:last-child').classList.add('active');
+        document.getElementById('register-form').classList.add('active');
+    }
+    
+    // Очистка ошибок
+    document.getElementById('login-error').textContent = '';
+    document.getElementById('reg-error').textContent = '';
+    document.getElementById('reg-success').textContent = '';
+}
+
+// Регистрация
+function doRegister() {
+    var username = document.getElementById('reg-username').value.trim();
+    var password = document.getElementById('reg-password').value;
+    var password2 = document.getElementById('reg-password2').value;
+    
+    if (!username || !password) {
+        document.getElementById('reg-error').textContent = 'Заполните все поля';
+        return;
+    }
+    if (password !== password2) {
+        document.getElementById('reg-error').textContent = 'Пароли не совпадают';
+        return;
+    }
+    if (password.length < 4) {
+        document.getElementById('reg-error').textContent = 'Пароль минимум 4 символа';
+        return;
+    }
+    
+    document.getElementById('reg-error').textContent = '';
+    
+    // Подключаемся временно для регистрации
+    var tempWs = new WebSocket('ws://localhost:8080/ws');
+    
+    tempWs.onopen = function() {
+        tempWs.send(JSON.stringify({
+            type: 'register',
+            from: username,
+            password: password
+        }));
+    };
+    
+    tempWs.onmessage = function(e) {
+        var msg = JSON.parse(e.data);
+        if (msg.type === 'register_result') {
+            if (msg.success) {
+                document.getElementById('reg-success').textContent = 'Регистрация успешна! Переключаюсь на вход...';
+                setTimeout(() => {
+                    showTab('login');
+                    document.getElementById('login-username').value = username;
+                    tempWs.close();
+                }, 1500);
+            } else {
+                document.getElementById('reg-error').textContent = msg.error || 'Ошибка регистрации';
+            }
+        }
+    };
+}
+
+// Вход в систему
+function doLogin() {
+    var username = document.getElementById('login-username').value.trim();
+    var password = document.getElementById('login-password').value;
+    
+    if (!username || !password) {
+        document.getElementById('login-error').textContent = 'Введите имя и пароль';
+        return;
+    }
+    
+    myName = username;
+    
+    ws = new WebSocket('ws://localhost:8080/ws');
+    
+    ws.onopen = function() {
+        ws.send(JSON.stringify({
+            type: 'login',
+            from: username,
+            password: password
+        }));
+    };
+    
+    ws.onmessage = function(e) {
+        var msg = JSON.parse(e.data);
+        
+        if (msg.type === 'login_result') {
+            if (msg.success) {
+                // Успешный вход! Показываем чат
+                document.getElementById('auth').style.display = 'none';
+                document.getElementById('sidebar').style.display = 'block';
+                document.getElementById('chat').style.display = 'flex';
+                document.getElementById('my-name').textContent = myName;
+                handleChatMessage(msg);
+            } else {
+                document.getElementById('login-error').textContent = msg.error || 'Ошибка входа';
+                myName = '';
+            }
+        } else {
+            // Обычные сообщения чата
+            handleChatMessage(msg);
+        }
+    };
+    
+    ws.onerror = function() {
+        document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
+    };
+}
+
+// Обработка сообщений чата
+function handleChatMessage(msg) {
+    if (msg.type === 'online') {
+        updateContacts(msg.text ? msg.text.split(',') : []);
+    } else if (msg.type === 'group_list') {
+        updateGroups(msg.text);
+    } else if (msg.type === 'history') {
+        showMessage(msg.from, msg.text, false);
+    } else if (msg.type === 'message') {
+        showMessage(msg.from, msg.text, msg.from === myName);
+    } else if (msg.type === 'member_list') {
+        document.getElementById('header').textContent += ' (' + msg.text + ')';
+    }
+}
+
+function updateContacts(users) {
+    var html = '';
+    users.forEach(function(user) {
+        if (user !== myName) {
+            html += '<div class="contact" onclick="selectUser(\'' + user + '\')">' + user + '</div>';
+        }
+    });
+    document.getElementById('contacts').innerHTML = html;
+}
+
+function updateGroups(groups) {
+    if (!groups) return;
+    var html = document.getElementById('contacts').innerHTML;
+    groups.split(',').forEach(function(g) {
+        var parts = g.split('|');
+        if (parts.length === 2) {
+            html += '<div class="contact" onclick="selectGroup(\'' + parts[0] + '\',\'' + parts[1] + '\')" style="background:#e3f2fd;">👥 ' + parts[1] + '</div>';
+        }
+    });
+    document.getElementById('contacts').innerHTML = html;
+}
+
+function selectUser(name) {
+    currentChat = name;
+    isGroup = false;
+    document.getElementById('header').textContent = '💬 ' + name;
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('input').style.display = 'flex';
+    ws.send(JSON.stringify({type: 'select_dialog', to: name}));
+}
+
+function selectGroup(id, name) {
+    currentChat = id;
+    isGroup = true;
+    document.getElementById('header').textContent = '👥 ' + name;
+    document.getElementById('messages').innerHTML = '';
+    document.getElementById('input').style.display = 'flex';
+    ws.send(JSON.stringify({type: 'select_group', to: id}));
+}
+
+function showMessage(from, text, isMe) {
+    var div = document.createElement('div');
+    div.className = 'message ' + (isMe ? 'out' : 'in');
+    div.innerHTML = '<b>' + from + '</b><br>' + text;
+    document.getElementById('messages').appendChild(div);
+    document.getElementById('messages').scrollTop = 999999;
+}
+
+function send() {
+    var text = document.getElementById('msg').value.trim();
+    if (!text || !currentChat) return;
+    
+    ws.send(JSON.stringify({
+        type: 'message',
+        to: currentChat,
+        text: text
+    }));
+    
+    document.getElementById('msg').value = '';
+}
+
+function showCreateGroup() {
+    var name = prompt('Название группы:');
+    if (!name) return;
+    var members = prompt('Участники (через запятую):');
+    ws.send(JSON.stringify({
+        type: 'create_group',
+        groupName: name,
+        members: myName + ',' + members
+    }));
+}
+
+function logout() {
+    location.reload();
+}
+
+// Enter для отправки
+document.getElementById('msg').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') send();
+});
+</script>
+
+</body>
+</html>

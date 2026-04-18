@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: messenger
+    runtime: go
+    buildCommand: go build -o messenger
+    startCommand: ./messenger
+    envVars:
+      - key: PORT
+        value: 8080
+    plan: free
