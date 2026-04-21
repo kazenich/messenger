@@ -1,4 +1,3 @@
-
 package main
 
 import (
@@ -39,9 +38,9 @@ type Message struct {
 	IsGroup   bool   `json:"isGroup"`
 	GroupName string `json:"groupName"`
 	Members   string `json:"members"`
-	Password  string `json:"password"` // Для регистрации/входа
-	Success   bool   `json:"success"`  // Ответ от сервера
-	Error     string `json:"error"`    // Ошибка
+	Password  string `json:"password"`
+	Success   bool   `json:"success"`
+	Error     string `json:"error"`
 }
 
 func initDB() {
@@ -49,14 +48,14 @@ func initDB() {
 	db, err = sql.Open("sqlite", "/tmp/chat.db")
 	if err != nil { panic(err) }
 	
-	// Таблица пользователей (логин + пароль)
+	// Таблица пользователей
 	sql1 := `CREATE TABLE IF NOT EXISTS users (
 		username TEXT PRIMARY KEY,
 		password_hash TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 	
-	// Таблица сообщений (остается как была)
+	// Таблица сообщений
 	sql2 := `CREATE TABLE IF NOT EXISTS private_messages (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		dialog_key TEXT,
@@ -77,6 +76,7 @@ func initDB() {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 	
+	// Участники групп
 	sql4 := `CREATE TABLE IF NOT EXISTS group_members (
 		group_id TEXT,
 		user_name TEXT,
@@ -84,47 +84,116 @@ func initDB() {
 		PRIMARY KEY (group_id, user_name)
 	);`
 	
+	// Диалоги пользователей (сохранённые контакты)
+	sql5 := `CREATE TABLE IF NOT EXISTS user_dialogs (
+		user_name TEXT,
+		contact_name TEXT,
+		last_message_time DATETIME,
+		PRIMARY KEY (user_name, contact_name)
+	);`
+	
+	// Группы пользователя
+	sql6 := `CREATE TABLE IF NOT EXISTS user_groups (
+		user_name TEXT,
+		group_id TEXT,
+		group_name TEXT,
+		joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (user_name, group_id)
+	);`
+	
 	db.Exec(sql1)
 	db.Exec(sql2)
 	db.Exec(sql3)
 	db.Exec(sql4)
-	fmt.Println("База данных с пользователями готова")
+	db.Exec(sql5)
+	db.Exec(sql6)
+	fmt.Println("База данных готова")
 }
 
-// Регистрация нового пользователя
+// Сохранить диалог
+func saveDialog(userName, contactName string) {
+	db.Exec(`
+		INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) 
+		VALUES (?, ?, CURRENT_TIMESTAMP)
+	`, userName, contactName)
+}
+
+// Получить список контактов пользователя
+func getUserDialogs(userName string) []string {
+	rows, err := db.Query(`
+		SELECT contact_name FROM user_dialogs 
+		WHERE user_name = ? 
+		ORDER BY last_message_time DESC
+	`, userName)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	
+	var contacts []string
+	for rows.Next() {
+		var contact string
+		rows.Scan(&contact)
+		contacts = append(contacts, contact)
+	}
+	return contacts
+}
+
+// Сохранить группу для пользователя
+func saveUserGroup(userName, groupID, groupName string) {
+	db.Exec(`
+		INSERT OR IGNORE INTO user_groups (user_name, group_id, group_name) 
+		VALUES (?, ?, ?)
+	`, userName, groupID, groupName)
+}
+
+// Получить группы пользователя из БД
+func getUserGroupsFromDB(userName string) []struct{ID, Name string} {
+	rows, err := db.Query(`
+		SELECT group_id, group_name FROM user_groups 
+		WHERE user_name = ?
+	`, userName)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	
+	var groups []struct{ID, Name string}
+	for rows.Next() {
+		var g struct{ID, Name string}
+		rows.Scan(&g.ID, &g.Name)
+		groups = append(groups, g)
+	}
+	return groups
+}
+
 func registerUser(username, password string) error {
-	// Проверяем, есть ли уже такой пользователь
 	var exists int
 	err := db.QueryRow("SELECT 1 FROM users WHERE username = ?", username).Scan(&exists)
 	if err == nil {
 		return fmt.Errorf("user_exists")
 	}
 	
-	// Хешируем пароль (bcrypt)
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
 	
-	// Сохраняем
 	_, err = db.Exec("INSERT INTO users (username, password_hash) VALUES (?, ?)", username, string(hash))
 	return err
 }
 
-// Проверка логина и пароля
 func loginUser(username, password string) bool {
 	var hash string
 	err := db.QueryRow("SELECT password_hash FROM users WHERE username = ?", username).Scan(&hash)
 	if err != nil {
-		return false // Пользователь не найден
+		return false
 	}
 	
-	// Проверяем пароль
 	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
 
-// Остальные функции (getDialogKey, saveMessage, getPrivateHistory и т.д.) остаются как в прошлой версии
 func getDialogKey(u1, u2 string) string {
 	if u1 > u2 {
 		return u2 + "_" + u1
@@ -189,25 +258,7 @@ func createGroup(name, creator string) string {
 
 func joinGroup(groupID, userName string) bool {
 	_, err := db.Exec("INSERT OR IGNORE INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, userName)
-	if err != nil {
-		fmt.Println("Ошибка входа в группу:", err)
-		return false
-	}
-	return true
-}
-
-func getUserGroups(userName string) []struct{ID, Name string} {
-	rows, err := db.Query("SELECT g.id, g.name FROM groups g JOIN group_members gm ON g.id = gm.group_id WHERE gm.user_name = ?", userName)
-	if err != nil { return nil }
-	defer rows.Close()
-	
-	var groups []struct{ID, Name string}
-	for rows.Next() {
-		var g struct{ID, Name string}
-		rows.Scan(&g.ID, &g.Name)
-		groups = append(groups, g)
-	}
-	return groups
+	return err == nil
 }
 
 func getGroupMembers(groupID string) []string {
@@ -222,6 +273,12 @@ func getGroupMembers(groupID string) []string {
 		members = append(members, m)
 	}
 	return members
+}
+
+func getGroupName(groupID string) string {
+	var name string
+	db.QueryRow("SELECT name FROM groups WHERE id = ?", groupID).Scan(&name)
+	return name
 }
 
 func getOnlineUsers(except string) []string {
@@ -254,16 +311,8 @@ func broadcastOnlineList() {
 	}
 }
 
-func broadcastGroupList() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for c := range clients {
-		sendGroupList(c)
-	}
-}
-
 func sendGroupList(client *Client) {
-	groups := getUserGroups(client.Name)
+	groups := getUserGroupsFromDB(client.Name)
 	var list []string
 	for _, g := range groups {
 		list = append(list, g.ID+"|"+g.Name)
@@ -283,21 +332,21 @@ func main() {
 	})
 	http.HandleFunc("/ws", handleWebSocket)
 	
-	fmt.Println("=== МЕССЕНДЖЕР С АККАУНТАМИ ===")
-	fmt.Println("Откройте: http://localhost:8080")
 	port := os.Getenv("PORT")
-if port == "" {
-    port = "8080"
-}
-fmt.Println("Сервер запущен на порту:", port)
-http.ListenAndServe(":"+port, nil)
+	if port == "" {
+		port = "8080"
+	}
+	
+	fmt.Println("=== МЕССЕНДЖЕР С АККАУНТАМИ ===")
+	fmt.Println("Сервер запущен на порту:", port)
+	http.ListenAndServe(":"+port, nil)
 }
 
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil { return }
 	
-	var username string // Запоминаем имя после авторизации
+	var username string
 	
 	for {
 		var msg Message
@@ -308,7 +357,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		
 		switch msg.Type {
 		case "register":
-			// Регистрация нового пользователя
 			err := registerUser(msg.From, msg.Password)
 			if err != nil {
 				if err.Error() == "user_exists" {
@@ -321,7 +369,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 			
 		case "login":
-			// Вход в систему
 			if loginUser(msg.From, msg.Password) {
 				username = msg.From
 				client := &Client{Conn: conn, Name: username}
@@ -334,11 +381,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				broadcastOnlineList()
 				sendGroupList(client)
 				
+				// Отправляем сохранённые контакты
+				contacts := getUserDialogs(username)
+				conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+				
 				conn.WriteJSON(Message{Type: "login_result", Success: true, Text: "Вход выполнен"})
 				
-				// Теперь ждем обычные сообщения (чат)
 				handleChat(client)
-				return // Выходим из цикла, handleChat берет управление
+				return
 			} else {
 				conn.WriteJSON(Message{Type: "login_result", Success: false, Error: "Неверное имя или пароль"})
 			}
@@ -387,12 +437,15 @@ func handleChat(client *Client) {
 			if groupID != "" {
 				members := strings.Split(msg.Members, ",")
 				for _, m := range members {
-					if m != client.Name {
+					m = strings.TrimSpace(m)
+					if m != client.Name && m != "" {
 						joinGroup(groupID, m)
+						saveUserGroup(m, groupID, msg.GroupName)
 					}
 				}
+				saveUserGroup(client.Name, groupID, msg.GroupName)
 				client.Conn.WriteJSON(Message{Type: "group_created", To: groupID, GroupName: msg.GroupName})
-				broadcastGroupList()
+				broadcastGroupListToAll()
 			}
 			
 		case "message":
@@ -421,6 +474,10 @@ func handleChat(client *Client) {
 				if msg.To == "" { continue }
 				saveMessage(client.Name, msg.To, msg.Text, false, "")
 				
+				// Сохраняем диалоги для обоих собеседников
+				saveDialog(client.Name, msg.To)
+				saveDialog(msg.To, client.Name)
+				
 				client.Conn.WriteJSON(Message{
 					From: client.Name,
 					To: msg.To,
@@ -447,5 +504,13 @@ func handleChat(client *Client) {
 				mutex.Unlock()
 			}
 		}
+	}
+}
+
+func broadcastGroupListToAll() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	for c := range clients {
+		sendGroupList(c)
 	}
 }
