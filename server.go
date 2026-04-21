@@ -2,7 +2,6 @@ package main
 
 import (
 	"database/sql"
-	"encoding/base64"
 	"net/http"
 	"sort"
 	"strings"
@@ -42,8 +41,8 @@ type Message struct {
 	Password  string `json:"password"`
 	Success   bool   `json:"success"`
 	Error     string `json:"error"`
-	ImageData string `json:"imageData"` // base64 для фото
-	Sticker   string `json:"sticker"`   // код стикера
+	ImageData string `json:"imageData"`
+	Sticker   string `json:"sticker"`
 }
 
 func initDB() {
