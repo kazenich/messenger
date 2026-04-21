@@ -46,7 +46,7 @@ type Message struct {
 
 func initDB() {
 	var err error
-	db, err = sql.Open("sqlite", "chat.db")
+	db, err = sql.Open("sqlite", "/tmp/chat.db")
 	if err != nil { panic(err) }
 	
 	// Таблица пользователей (логин + пароль)
