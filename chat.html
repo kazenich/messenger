@@ -202,7 +202,9 @@ function doLogin() {
     
     myName = username;
     
-    ws = new WebSocket('ws://localhost:8080/ws');
+var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+var wsUrl = protocol + "//" + window.location.host + "/ws";
+var ws = new WebSocket(wsUrl);
     
     ws.onopen = function() {
         ws.send(JSON.stringify({
