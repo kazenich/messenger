@@ -160,18 +160,18 @@ function doRegister() {
     
     document.getElementById('reg-error').textContent = '';
     
-    // Подключаемся временно для регистрации
-var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-var wsUrl = protocol + "//" + window.location.host + "/ws";
-var ws = new WebSocket(wsUrl);
+    // Используем существующее WebSocket-соединение, а не создаём новое
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+        document.getElementById('reg-error').textContent = 'Нет соединения с сервером';
+        return;
+    }
     
-    tempWs.onopen = function() {
-        tempWs.send(JSON.stringify({
-            type: 'register',
-            from: username,
-            password: password
-        }));
-    };
+    ws.send(JSON.stringify({
+        type: 'register',
+        from: username,
+        password: password
+    }));
+}
     
     tempWs.onmessage = function(e) {
         var msg = JSON.parse(e.data);
