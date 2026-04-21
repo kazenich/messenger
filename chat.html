@@ -161,7 +161,9 @@ function doRegister() {
     document.getElementById('reg-error').textContent = '';
     
     // Подключаемся временно для регистрации
-    var tempWs = new WebSocket('ws://localhost:8080/ws');
+var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+var wsUrl = protocol + "//" + window.location.host + "/ws";
+var ws = new WebSocket(wsUrl);
     
     tempWs.onopen = function() {
         tempWs.send(JSON.stringify({
