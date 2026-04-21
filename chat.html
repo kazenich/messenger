@@ -59,6 +59,40 @@
         button { padding: 10px 20px; background: #075e54; color: white; border: none; cursor: pointer; }
         .contact-section { margin-top: 10px; }
         .section-title { padding: 10px; background: #e0e0e0; font-weight: bold; font-size: 12px; color: #666; }
+        
+        /* Стили для поиска */
+        .search-box {
+            padding: 10px;
+            background: #f0f0f0;
+            border-bottom: 1px solid #ddd;
+        }
+        .search-box input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 20px;
+            box-sizing: border-box;
+            font-size: 14px;
+        }
+        .search-results {
+            max-height: 200px;
+            overflow-y: auto;
+            border-bottom: 1px solid #ddd;
+        }
+        .search-result-item {
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #eee;
+        }
+        .search-result-item:hover {
+            background: #e3f2fd;
+        }
+        .no-results {
+            padding: 10px;
+            text-align: center;
+            color: #999;
+            font-size: 12px;
+        }
     </style>
 </head>
 <body>
@@ -98,6 +132,13 @@
         Вы: <b><span id="my-name"></span></b>
         <button onclick="logout()" style="float:right;font-size:12px;">Выход</button>
     </div>
+    
+    <!-- Блок поиска -->
+    <div class="search-box">
+        <input type="text" id="search-input" placeholder="🔍 Поиск пользователей..." onkeyup="searchUsers()">
+    </div>
+    <div id="search-results" class="search-results" style="display:none;"></div>
+    
     <div id="contacts"></div>
 </div>
 
@@ -116,6 +157,7 @@ var myName = '';
 var currentChat = '';
 var isGroup = false;
 var savedContacts = [];
+var allUsers = []; // Список всех пользователей для поиска
 
 function showTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -237,6 +279,8 @@ function handleChatMessage(msg) {
     } else if (msg.type === 'contact_list') {
         savedContacts = msg.text ? msg.text.split(',') : [];
         renderContacts();
+    } else if (msg.type === 'user_list') {
+        allUsers = msg.text ? msg.text.split(',') : [];
     } else if (msg.type === 'history') {
         showMessage(msg.from, msg.text, false);
     } else if (msg.type === 'message') {
@@ -253,6 +297,9 @@ function renderContacts() {
             html += '<div class="contact" onclick="selectUser(\'' + contact + '\')">📱 ' + contact + '</div>';
         }
     });
+    if (savedContacts.length === 0 || (savedContacts.length === 1 && savedContacts[0] === myName)) {
+        html += '<div style="padding: 10px; color: #999;">Нет сохранённых контактов</div>';
+    }
     html += '</div><div class="contact-section"><div class="section-title">🟢 ОНЛАЙН</div><div id="online-users"></div></div>';
     document.getElementById('contacts').innerHTML = html;
 }
@@ -273,7 +320,7 @@ function updateOnlineUsers(users) {
 }
 
 function updateGroups(groups) {
-    if (!groups) return;
+    if (!groups || groups === '') return;
     var html = '<div class="contact-section"><div class="section-title">👥 ГРУППЫ</div>';
     groups.split(',').forEach(function(g) {
         var parts = g.split('|');
@@ -282,7 +329,60 @@ function updateGroups(groups) {
         }
     });
     html += '</div>';
-    document.getElementById('contacts').innerHTML = html + document.getElementById('contacts').innerHTML;
+    var contactsDiv = document.getElementById('contacts');
+    if (contactsDiv) {
+        contactsDiv.innerHTML = html + contactsDiv.innerHTML;
+    }
+}
+
+function searchUsers() {
+    var query = document.getElementById('search-input').value.trim().toLowerCase();
+    var resultsDiv = document.getElementById('search-results');
+    
+    if (query === '') {
+        resultsDiv.style.display = 'none';
+        resultsDiv.innerHTML = '';
+        return;
+    }
+    
+    // Запрашиваем список пользователей у сервера
+    ws.send(JSON.stringify({
+        type: 'search_users',
+        query: query
+    }));
+}
+
+// Обработка результатов поиска от сервера
+function showSearchResults(users) {
+    var resultsDiv = document.getElementById('search-results');
+    
+    if (!users || users.length === 0) {
+        resultsDiv.innerHTML = '<div class="no-results">👤 Пользователи не найдены</div>';
+        resultsDiv.style.display = 'block';
+        return;
+    }
+    
+    var html = '';
+    users.forEach(function(user) {
+        if (user !== myName) {
+            var isSaved = savedContacts.includes(user);
+            var icon = isSaved ? '📱' : '👤';
+            html += '<div class="search-result-item" onclick="selectUser(\'' + user + '\'); clearSearch();">' + icon + ' ' + user + '</div>';
+        }
+    });
+    
+    if (html === '') {
+        html = '<div class="no-results">👤 Пользователи не найдены</div>';
+    }
+    
+    resultsDiv.innerHTML = html;
+    resultsDiv.style.display = 'block';
+}
+
+function clearSearch() {
+    document.getElementById('search-input').value = '';
+    document.getElementById('search-results').style.display = 'none';
+    document.getElementById('search-results').innerHTML = '';
 }
 
 function selectUser(name) {
@@ -292,6 +392,7 @@ function selectUser(name) {
     document.getElementById('messages').innerHTML = '';
     document.getElementById('input').style.display = 'flex';
     ws.send(JSON.stringify({type: 'select_dialog', to: name}));
+    clearSearch();
 }
 
 function selectGroup(id, name) {
@@ -301,6 +402,7 @@ function selectGroup(id, name) {
     document.getElementById('messages').innerHTML = '';
     document.getElementById('input').style.display = 'flex';
     ws.send(JSON.stringify({type: 'select_group', to: id}));
+    clearSearch();
 }
 
 function showMessage(from, text, isMe) {
@@ -338,6 +440,17 @@ function showCreateGroup() {
 function logout() {
     location.reload();
 }
+
+// Закрываем поиск при клике вне его
+document.addEventListener('click', function(e) {
+    var searchBox = document.querySelector('.search-box');
+    var resultsDiv = document.getElementById('search-results');
+    if (searchBox && !searchBox.contains(e.target)) {
+        if (resultsDiv) {
+            resultsDiv.style.display = 'none';
+        }
+    }
+});
 
 document.getElementById('msg').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') send();

@@ -48,14 +48,12 @@ func initDB() {
 	db, err = sql.Open("sqlite", "/tmp/chat.db")
 	if err != nil { panic(err) }
 	
-	// Таблица пользователей
 	sql1 := `CREATE TABLE IF NOT EXISTS users (
 		username TEXT PRIMARY KEY,
 		password_hash TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 	
-	// Таблица сообщений
 	sql2 := `CREATE TABLE IF NOT EXISTS private_messages (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		dialog_key TEXT,
@@ -68,7 +66,6 @@ func initDB() {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 	
-	// Таблица групп
 	sql3 := `CREATE TABLE IF NOT EXISTS groups (
 		id TEXT PRIMARY KEY,
 		name TEXT,
@@ -76,7 +73,6 @@ func initDB() {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);`
 	
-	// Участники групп
 	sql4 := `CREATE TABLE IF NOT EXISTS group_members (
 		group_id TEXT,
 		user_name TEXT,
@@ -84,7 +80,6 @@ func initDB() {
 		PRIMARY KEY (group_id, user_name)
 	);`
 	
-	// Диалоги пользователей (сохранённые контакты)
 	sql5 := `CREATE TABLE IF NOT EXISTS user_dialogs (
 		user_name TEXT,
 		contact_name TEXT,
@@ -92,7 +87,6 @@ func initDB() {
 		PRIMARY KEY (user_name, contact_name)
 	);`
 	
-	// Группы пользователя
 	sql6 := `CREATE TABLE IF NOT EXISTS user_groups (
 		user_name TEXT,
 		group_id TEXT,
@@ -110,7 +104,6 @@ func initDB() {
 	fmt.Println("База данных готова")
 }
 
-// Сохранить диалог
 func saveDialog(userName, contactName string) {
 	db.Exec(`
 		INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) 
@@ -118,7 +111,6 @@ func saveDialog(userName, contactName string) {
 	`, userName, contactName)
 }
 
-// Получить список контактов пользователя
 func getUserDialogs(userName string) []string {
 	rows, err := db.Query(`
 		SELECT contact_name FROM user_dialogs 
@@ -139,7 +131,6 @@ func getUserDialogs(userName string) []string {
 	return contacts
 }
 
-// Сохранить группу для пользователя
 func saveUserGroup(userName, groupID, groupName string) {
 	db.Exec(`
 		INSERT OR IGNORE INTO user_groups (user_name, group_id, group_name) 
@@ -147,7 +138,6 @@ func saveUserGroup(userName, groupID, groupName string) {
 	`, userName, groupID, groupName)
 }
 
-// Получить группы пользователя из БД
 func getUserGroupsFromDB(userName string) []struct{ID, Name string} {
 	rows, err := db.Query(`
 		SELECT group_id, group_name FROM user_groups 
@@ -281,6 +271,42 @@ func getGroupName(groupID string) string {
 	return name
 }
 
+func searchUsers(query, currentUser string) []string {
+	rows, err := db.Query(`
+		SELECT username FROM users 
+		WHERE username LIKE ? AND username != ?
+		LIMIT 10
+	`, "%"+query+"%", currentUser)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	
+	var users []string
+	for rows.Next() {
+		var user string
+		rows.Scan(&user)
+		users = append(users, user)
+	}
+	return users
+}
+
+func getAllUsers(currentUser string) []string {
+	rows, err := db.Query("SELECT username FROM users WHERE username != ?", currentUser)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	
+	var users []string
+	for rows.Next() {
+		var user string
+		rows.Scan(&user)
+		users = append(users, user)
+	}
+	return users
+}
+
 func getOnlineUsers(except string) []string {
 	mutex.Lock()
 	defer mutex.Unlock()
@@ -381,9 +407,11 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				broadcastOnlineList()
 				sendGroupList(client)
 				
-				// Отправляем сохранённые контакты
 				contacts := getUserDialogs(username)
 				conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+				
+				allUsers := getAllUsers(username)
+				conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(allUsers, ",")})
 				
 				conn.WriteJSON(Message{Type: "login_result", Success: true, Text: "Вход выполнен"})
 				
@@ -448,6 +476,14 @@ func handleChat(client *Client) {
 				broadcastGroupListToAll()
 			}
 			
+		case "search_users":
+			query := strings.ToLower(msg.Text)
+			users := searchUsers(query, client.Name)
+			client.Conn.WriteJSON(Message{
+				Type: "search_results",
+				Text: strings.Join(users, ","),
+			})
+			
 		case "message":
 			if client.IsGroup {
 				groupID := client.CurrentDialog
@@ -474,7 +510,6 @@ func handleChat(client *Client) {
 				if msg.To == "" { continue }
 				saveMessage(client.Name, msg.To, msg.Text, false, "")
 				
-				// Сохраняем диалоги для обоих собеседников
 				saveDialog(client.Name, msg.To)
 				saveDialog(msg.To, client.Name)
 				
