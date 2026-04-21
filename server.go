@@ -113,6 +113,13 @@ func saveDialog(userName, contactName string) {
 	`, userName, contactName)
 }
 
+func deleteDialog(userName, contactName string) {
+	db.Exec(`
+		DELETE FROM user_dialogs 
+		WHERE user_name = ? AND contact_name = ?
+	`, userName, contactName)
+}
+
 func getUserDialogs(userName string) []string {
 	rows, err := db.Query(`
 		SELECT contact_name FROM user_dialogs 
@@ -131,6 +138,28 @@ func getUserDialogs(userName string) []string {
 		contacts = append(contacts, contact)
 	}
 	return contacts
+}
+
+func addContact(userName, contactName string) error {
+	// Проверяем, существует ли такой пользователь
+	var exists int
+	err := db.QueryRow("SELECT 1 FROM users WHERE username = ?", contactName).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("user_not_found")
+	}
+	
+	// Нельзя добавить самого себя
+	if userName == contactName {
+		return fmt.Errorf("cannot_add_self")
+	}
+	
+	// Добавляем контакт
+	db.Exec(`
+		INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) 
+		VALUES (?, ?, CURRENT_TIMESTAMP)
+	`, userName, contactName)
+	
+	return nil
 }
 
 func saveUserGroup(userName, groupID, groupName string) {
@@ -510,6 +539,52 @@ func handleChat(client *Client) {
 			client.Conn.WriteJSON(Message{
 				Type: "user_list",
 				Text: strings.Join(users, ","),
+			})
+
+		case "add_contact":
+			contactName := msg.Text
+			err := addContact(client.Name, contactName)
+			if err != nil {
+				var errorMsg string
+				if err.Error() == "user_not_found" {
+					errorMsg = "Пользователь не найден"
+				} else if err.Error() == "cannot_add_self" {
+					errorMsg = "Нельзя добавить самого себя"
+				} else {
+					errorMsg = "Ошибка добавления контакта"
+				}
+				client.Conn.WriteJSON(Message{
+					Type:  "add_contact_result",
+					Success: false,
+					Error: errorMsg,
+				})
+			} else {
+				// Обновляем список контактов
+				contacts := getUserDialogs(client.Name)
+				client.Conn.WriteJSON(Message{
+					Type:    "contact_list",
+					Text:    strings.Join(contacts, ","),
+				})
+				client.Conn.WriteJSON(Message{
+					Type:    "add_contact_result",
+					Success: true,
+					Text:    "Контакт добавлен",
+				})
+			}
+
+		case "delete_contact":
+			contactName := msg.Text
+			deleteDialog(client.Name, contactName)
+			// Обновляем список контактов
+			contacts := getUserDialogs(client.Name)
+			client.Conn.WriteJSON(Message{
+				Type:    "contact_list",
+				Text:    strings.Join(contacts, ","),
+			})
+			client.Conn.WriteJSON(Message{
+				Type:    "delete_contact_result",
+				Success: true,
+				Text:    "Контакт удалён",
 			})
 
 		case "message":
