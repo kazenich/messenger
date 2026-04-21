@@ -60,7 +60,6 @@
         .contact-section { margin-top: 10px; }
         .section-title { padding: 10px; background: #e0e0e0; font-weight: bold; font-size: 12px; color: #666; }
         
-        /* Стили для поиска */
         .search-box {
             padding: 10px;
             background: #f0f0f0;
@@ -78,6 +77,7 @@
             max-height: 200px;
             overflow-y: auto;
             border-bottom: 1px solid #ddd;
+            background: white;
         }
         .search-result-item {
             padding: 10px 15px;
@@ -133,7 +133,6 @@
         <button onclick="logout()" style="float:right;font-size:12px;">Выход</button>
     </div>
     
-    <!-- Блок поиска -->
     <div class="search-box">
         <input type="text" id="search-input" placeholder="🔍 Поиск пользователей..." onkeyup="searchUsers()">
     </div>
@@ -157,7 +156,6 @@ var myName = '';
 var currentChat = '';
 var isGroup = false;
 var savedContacts = [];
-var allUsers = []; // Список всех пользователей для поиска
 
 function showTab(tab) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -272,6 +270,8 @@ function doLogin() {
 }
 
 function handleChatMessage(msg) {
+    console.log("Получено сообщение:", msg.type, msg);
+    
     if (msg.type === 'online') {
         updateOnlineUsers(msg.text ? msg.text.split(',') : []);
     } else if (msg.type === 'group_list') {
@@ -279,8 +279,9 @@ function handleChatMessage(msg) {
     } else if (msg.type === 'contact_list') {
         savedContacts = msg.text ? msg.text.split(',') : [];
         renderContacts();
-    } else if (msg.type === 'user_list') {
-        allUsers = msg.text ? msg.text.split(',') : [];
+    } else if (msg.type === 'search_results') {
+        console.log("Результаты поиска:", msg.text);
+        showSearchResults(msg.text ? msg.text.split(',') : []);
     } else if (msg.type === 'history') {
         showMessage(msg.from, msg.text, false);
     } else if (msg.type === 'message') {
@@ -336,8 +337,10 @@ function updateGroups(groups) {
 }
 
 function searchUsers() {
-    var query = document.getElementById('search-input').value.trim().toLowerCase();
+    var query = document.getElementById('search-input').value.trim();
     var resultsDiv = document.getElementById('search-results');
+    
+    console.log("searchUsers вызвана, запрос:", query);
     
     if (query === '') {
         resultsDiv.style.display = 'none';
@@ -345,16 +348,25 @@ function searchUsers() {
         return;
     }
     
-    // Запрашиваем список пользователей у сервера
-    ws.send(JSON.stringify({
-        type: 'search_users',
-        query: query
-    }));
+    resultsDiv.innerHTML = '<div class="no-results">🔍 Поиск...</div>';
+    resultsDiv.style.display = 'block';
+    
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        console.log("Отправляем search_users:", query);
+        ws.send(JSON.stringify({
+            type: 'search_users',
+            text: query
+        }));
+    } else {
+        console.log("WebSocket не подключен! readyState:", ws ? ws.readyState : "ws не определен");
+        resultsDiv.innerHTML = '<div class="no-results">⚠️ Нет соединения с сервером</div>';
+    }
 }
 
-// Обработка результатов поиска от сервера
 function showSearchResults(users) {
     var resultsDiv = document.getElementById('search-results');
+    
+    console.log("showSearchResults вызвана, пользователи:", users);
     
     if (!users || users.length === 0) {
         resultsDiv.innerHTML = '<div class="no-results">👤 Пользователи не найдены</div>';
@@ -441,7 +453,6 @@ function logout() {
     location.reload();
 }
 
-// Закрываем поиск при клике вне его
 document.addEventListener('click', function(e) {
     var searchBox = document.querySelector('.search-box');
     var resultsDiv = document.getElementById('search-results');
@@ -455,6 +466,8 @@ document.addEventListener('click', function(e) {
 document.getElementById('msg').addEventListener('keypress', function(e) {
     if (e.key === 'Enter') send();
 });
+
+console.log("Скрипт загружен, ожидаем вход...");
 </script>
 
 </body>
