@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"net/http"
 	"sort"
 	"strings"
@@ -41,6 +42,8 @@ type Message struct {
 	Password  string `json:"password"`
 	Success   bool   `json:"success"`
 	Error     string `json:"error"`
+	ImageData string `json:"imageData"` // base64 для фото
+	Sticker   string `json:"sticker"`   // код стикера
 }
 
 func initDB() {
@@ -62,6 +65,8 @@ func initDB() {
 		from_user TEXT,
 		to_user TEXT,
 		text TEXT,
+		image_data TEXT,
+		sticker TEXT,
 		time TEXT,
 		is_group INTEGER DEFAULT 0,
 		group_id TEXT,
@@ -141,19 +146,16 @@ func getUserDialogs(userName string) []string {
 }
 
 func addContact(userName, contactName string) error {
-	// Проверяем, существует ли такой пользователь
 	var exists int
 	err := db.QueryRow("SELECT 1 FROM users WHERE username = ?", contactName).Scan(&exists)
 	if err != nil {
 		return fmt.Errorf("user_not_found")
 	}
 	
-	// Нельзя добавить самого себя
 	if userName == contactName {
 		return fmt.Errorf("cannot_add_self")
 	}
 	
-	// Добавляем контакт
 	db.Exec(`
 		INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) 
 		VALUES (?, ?, CURRENT_TIMESTAMP)
@@ -222,17 +224,17 @@ func getDialogKey(u1, u2 string) string {
 	return u1 + "_" + u2
 }
 
-func saveMessage(from, to, text string, isGroup bool, groupID string) {
+func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
 	if isGroup {
-		_, err := db.Exec("INSERT INTO private_messages (from_user, to_user, text, time, is_group, group_id) VALUES (?, ?, ?, ?, ?, ?)",
-			from, to, text, time.Now().Format("15:04"), 1, groupID)
+		_, err := db.Exec("INSERT INTO private_messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			from, to, text, imageData, sticker, time.Now().Format("15:04"), 1, groupID)
 		if err != nil {
 			fmt.Println("Ошибка сохранения:", err)
 		}
 	} else {
 		key := getDialogKey(from, to)
-		_, err := db.Exec("INSERT INTO private_messages (dialog_key, from_user, to_user, text, time, is_group) VALUES (?, ?, ?, ?, ?, ?)",
-			key, from, to, text, time.Now().Format("15:04"), 0)
+		_, err := db.Exec("INSERT INTO private_messages (dialog_key, from_user, to_user, text, image_data, sticker, time, is_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+			key, from, to, text, imageData, sticker, time.Now().Format("15:04"), 0)
 		if err != nil {
 			fmt.Println("Ошибка сохранения:", err)
 		}
@@ -241,7 +243,7 @@ func saveMessage(from, to, text string, isGroup bool, groupID string) {
 
 func getPrivateHistory(u1, u2 string) []Message {
 	key := getDialogKey(u1, u2)
-	rows, err := db.Query("SELECT from_user, text, time FROM private_messages WHERE dialog_key = ? AND is_group = 0 ORDER BY id ASC LIMIT 50", key)
+	rows, err := db.Query("SELECT from_user, text, image_data, sticker, time FROM private_messages WHERE dialog_key = ? AND is_group = 0 ORDER BY id ASC LIMIT 50", key)
 	if err != nil {
 		return nil
 	}
@@ -250,7 +252,7 @@ func getPrivateHistory(u1, u2 string) []Message {
 	var messages []Message
 	for rows.Next() {
 		var m Message
-		rows.Scan(&m.From, &m.Text, &m.Time)
+		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
 		m.Type = "history"
 		messages = append(messages, m)
 	}
@@ -258,7 +260,7 @@ func getPrivateHistory(u1, u2 string) []Message {
 }
 
 func getGroupHistory(groupID string) []Message {
-	rows, err := db.Query("SELECT from_user, text, time FROM private_messages WHERE group_id = ? ORDER BY id ASC LIMIT 50", groupID)
+	rows, err := db.Query("SELECT from_user, text, image_data, sticker, time FROM private_messages WHERE group_id = ? ORDER BY id ASC LIMIT 50", groupID)
 	if err != nil {
 		return nil
 	}
@@ -267,7 +269,7 @@ func getGroupHistory(groupID string) []Message {
 	var messages []Message
 	for rows.Next() {
 		var m Message
-		rows.Scan(&m.From, &m.Text, &m.Time)
+		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
 		m.Type = "history"
 		messages = append(messages, m)
 	}
@@ -523,7 +525,6 @@ func handleChat(client *Client) {
 
 		case "search_users":
 			query := msg.Text
-			fmt.Println("Поиск:", query, "от:", client.Name)
 			if query == "" {
 				client.Conn.WriteJSON(Message{Type: "search_results", Text: ""})
 				return
@@ -554,12 +555,11 @@ func handleChat(client *Client) {
 					errorMsg = "Ошибка добавления контакта"
 				}
 				client.Conn.WriteJSON(Message{
-					Type:  "add_contact_result",
+					Type:    "add_contact_result",
 					Success: false,
-					Error: errorMsg,
+					Error:   errorMsg,
 				})
 			} else {
-				// Обновляем список контактов
 				contacts := getUserDialogs(client.Name)
 				client.Conn.WriteJSON(Message{
 					Type:    "contact_list",
@@ -575,7 +575,6 @@ func handleChat(client *Client) {
 		case "delete_contact":
 			contactName := msg.Text
 			deleteDialog(client.Name, contactName)
-			// Обновляем список контактов
 			contacts := getUserDialogs(client.Name)
 			client.Conn.WriteJSON(Message{
 				Type:    "contact_list",
@@ -591,18 +590,20 @@ func handleChat(client *Client) {
 			if client.IsGroup {
 				groupID := client.CurrentDialog
 				members := getGroupMembers(groupID)
-				saveMessage(client.Name, "", msg.Text, true, groupID)
+				saveMessage(client.Name, "", msg.Text, msg.ImageData, msg.Sticker, true, groupID)
 
 				mutex.Lock()
 				for c := range clients {
 					for _, member := range members {
 						if c.Name == member && c.CurrentDialog == groupID && c.IsGroup {
 							c.Conn.WriteJSON(Message{
-								From:    client.Name,
-								Text:    msg.Text,
-								Time:    msg.Time,
-								Type:    "message",
-								IsGroup: true,
+								From:      client.Name,
+								Text:      msg.Text,
+								ImageData: msg.ImageData,
+								Sticker:   msg.Sticker,
+								Time:      msg.Time,
+								Type:      "message",
+								IsGroup:   true,
 							})
 							break
 						}
@@ -613,30 +614,34 @@ func handleChat(client *Client) {
 				if msg.To == "" {
 					continue
 				}
-				saveMessage(client.Name, msg.To, msg.Text, false, "")
+				saveMessage(client.Name, msg.To, msg.Text, msg.ImageData, msg.Sticker, false, "")
 
 				saveDialog(client.Name, msg.To)
 				saveDialog(msg.To, client.Name)
 
 				client.Conn.WriteJSON(Message{
-					From:    client.Name,
-					To:      msg.To,
-					Text:    msg.Text,
-					Time:    msg.Time,
-					Type:    "message",
-					IsGroup: false,
+					From:      client.Name,
+					To:        msg.To,
+					Text:      msg.Text,
+					ImageData: msg.ImageData,
+					Sticker:   msg.Sticker,
+					Time:      msg.Time,
+					Type:      "message",
+					IsGroup:   false,
 				})
 
 				mutex.Lock()
 				for c := range clients {
 					if c.Name == msg.To && c.CurrentDialog == client.Name && !c.IsGroup {
 						c.Conn.WriteJSON(Message{
-							From:    client.Name,
-							To:      msg.To,
-							Text:    msg.Text,
-							Time:    msg.Time,
-							Type:    "message",
-							IsGroup: false,
+							From:      client.Name,
+							To:        msg.To,
+							Text:      msg.Text,
+							ImageData: msg.ImageData,
+							Sticker:   msg.Sticker,
+							Time:      msg.Time,
+							Type:      "message",
+							IsGroup:   false,
 						})
 						break
 					}

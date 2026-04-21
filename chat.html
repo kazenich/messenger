@@ -130,6 +130,18 @@
             max-width: 70%;
         }
 
+        .message img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 10px;
+            cursor: pointer;
+        }
+
+        .message .sticker {
+            font-size: 48px;
+            cursor: pointer;
+        }
+
         .in {
             background: white;
             margin-right: auto;
@@ -145,6 +157,15 @@
             padding: 10px;
             background: #f0f0f0;
             display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        #input input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
         }
 
         .contact {
@@ -308,6 +329,43 @@
             70% { opacity: 1; }
             100% { opacity: 0; visibility: hidden; }
         }
+
+        .input-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .input-buttons button {
+            padding: 8px 12px;
+            font-size: 16px;
+        }
+
+        .sticker-panel {
+            position: absolute;
+            bottom: 70px;
+            left: 10px;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 10px;
+            display: none;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 5px;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .sticker-panel span {
+            font-size: 32px;
+            cursor: pointer;
+            padding: 5px;
+            text-align: center;
+        }
+
+        .sticker-panel span:hover {
+            background: #f0f0f0;
+            border-radius: 5px;
+        }
     </style>
 </head>
 <body>
@@ -369,9 +427,34 @@
     <div id="header" style="padding: 20px; background: #f0f0f0; font-weight: bold;">Выберите чат</div>
     <div id="messages"></div>
     <div id="input" style="display: none">
-        <input type="text" id="msg" placeholder="Сообщение..." style="flex: 1; padding: 10px;">
-        <button onclick="send()">Отправить</button>
+        <input type="text" id="msg" placeholder="Сообщение...">
+        <div class="input-buttons">
+            <button onclick="openStickerPanel()">😊</button>
+            <button onclick="sendPhoto()">📷</button>
+            <button onclick="send()">📤</button>
+        </div>
     </div>
+</div>
+
+<div id="sticker-panel" class="sticker-panel">
+    <span onclick="sendSticker('😀')">😀</span>
+    <span onclick="sendSticker('😂')">😂</span>
+    <span onclick="sendSticker('🥰')">🥰</span>
+    <span onclick="sendSticker('😍')">😍</span>
+    <span onclick="sendSticker('🎉')">🎉</span>
+    <span onclick="sendSticker('👍')">👍</span>
+    <span onclick="sendSticker('🔥')">🔥</span>
+    <span onclick="sendSticker('💯')">💯</span>
+    <span onclick="sendSticker('❤️')">❤️</span>
+    <span onclick="sendSticker('😢')">😢</span>
+    <span onclick="sendSticker('😱')">😱</span>
+    <span onclick="sendSticker('🤔')">🤔</span>
+    <span onclick="sendSticker('😎')">😎</span>
+    <span onclick="sendSticker('🥳')">🥳</span>
+    <span onclick="sendSticker('💔')">💔</span>
+    <span onclick="sendSticker('✨')">✨</span>
+    <span onclick="sendSticker('⭐')">⭐</span>
+    <span onclick="sendSticker('🍕')">🍕</span>
 </div>
 
 <script>
@@ -390,6 +473,63 @@
         setTimeout(function() {
             if (toast && toast.remove) toast.remove();
         }, 3000);
+    }
+
+    function openStickerPanel() {
+        var panel = document.getElementById('sticker-panel');
+        if (panel.style.display === 'grid') {
+            panel.style.display = 'none';
+        } else {
+            panel.style.display = 'grid';
+            setTimeout(function() {
+                document.addEventListener('click', function closePanel(e) {
+                    if (!panel.contains(e.target) && e.target !== document.querySelector('.input-buttons button:first-child')) {
+                        panel.style.display = 'none';
+                        document.removeEventListener('click', closePanel);
+                    }
+                });
+            }, 100);
+        }
+    }
+
+    function sendSticker(sticker) {
+        if (!currentChat) {
+            showToast('Выберите чат', true);
+            return;
+        }
+        ws.send(JSON.stringify({
+            type: 'message',
+            to: currentChat,
+            sticker: sticker,
+            text: ''
+        }));
+        document.getElementById('sticker-panel').style.display = 'none';
+    }
+
+    function sendPhoto() {
+        if (!currentChat) {
+            showToast('Выберите чат', true);
+            return;
+        }
+        var input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.onchange = function(e) {
+            var file = e.target.files[0];
+            if (file) {
+                var reader = new FileReader();
+                reader.onload = function(evt) {
+                    ws.send(JSON.stringify({
+                        type: 'message',
+                        to: currentChat,
+                        imageData: evt.target.result,
+                        text: ''
+                    }));
+                };
+                reader.readAsDataURL(file);
+            }
+        };
+        input.click();
     }
 
     function showTab(tab) {
@@ -438,20 +578,10 @@
         document.getElementById('reg-error').textContent = '';
         document.getElementById('reg-success').textContent = 'Регистрация...';
 
-        // Получаем правильный WebSocket URL
-        var wsUrl;
-        if (window.location.protocol === "https:") {
-            wsUrl = "wss://" + window.location.host + "/ws";
-        } else {
-            wsUrl = "ws://" + window.location.host + "/ws";
-        }
-        
-        console.log("Подключение к WebSocket для регистрации:", wsUrl);
-        
+        var wsUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws";
         var tempWs = new WebSocket(wsUrl);
 
         tempWs.onopen = function() {
-            console.log("WebSocket открыт, отправляем регистрацию");
             tempWs.send(JSON.stringify({
                 type: 'register',
                 from: username,
@@ -460,7 +590,6 @@
         };
 
         tempWs.onmessage = function(e) {
-            console.log("Получен ответ:", e.data);
             var msg = JSON.parse(e.data);
             if (msg.type === 'register_result') {
                 if (msg.success) {
@@ -477,8 +606,7 @@
             }
         };
         
-        tempWs.onerror = function(e) {
-            console.error("WebSocket ошибка:", e);
+        tempWs.onerror = function() {
             document.getElementById('reg-error').textContent = 'Ошибка подключения к серверу';
             document.getElementById('reg-success').textContent = '';
         };
@@ -495,19 +623,10 @@
 
         myName = username;
 
-        var wsUrl;
-        if (window.location.protocol === "https:") {
-            wsUrl = "wss://" + window.location.host + "/ws";
-        } else {
-            wsUrl = "ws://" + window.location.host + "/ws";
-        }
-        
-        console.log("Подключение к WebSocket для входа:", wsUrl);
-        
+        var wsUrl = (window.location.protocol === "https:" ? "wss://" : "ws://") + window.location.host + "/ws";
         ws = new WebSocket(wsUrl);
 
         ws.onopen = function() {
-            console.log("WebSocket открыт, отправляем логин");
             ws.send(JSON.stringify({
                 type: 'login',
                 from: username,
@@ -517,7 +636,6 @@
 
         ws.onmessage = function(e) {
             var msg = JSON.parse(e.data);
-            console.log("Получено сообщение:", msg);
 
             if (msg.type === 'login_result') {
                 if (msg.success) {
@@ -535,15 +653,12 @@
             }
         };
 
-        ws.onerror = function(e) {
-            console.error("WebSocket ошибка:", e);
+        ws.onerror = function() {
             document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
         };
     }
 
     function handleChatMessage(msg) {
-        console.log("Обработка сообщения:", msg.type, msg);
-
         if (msg.type === 'online') {
             updateOnlineUsers(msg.text ? msg.text.split(',') : []);
         } else if (msg.type === 'group_list') {
@@ -570,12 +685,34 @@
         } else if (msg.type === 'delete_contact_result') {
             showToast(msg.text || 'Контакт удалён');
         } else if (msg.type === 'history') {
-            showMessage(msg.from, msg.text, false);
+            showMessage(msg.from, msg.text, msg.imageData, msg.sticker, false);
         } else if (msg.type === 'message') {
-            showMessage(msg.from, msg.text, msg.from === myName);
+            showMessage(msg.from, msg.text, msg.imageData, msg.sticker, msg.from === myName);
         } else if (msg.type === 'member_list') {
             document.getElementById('header').textContent += ' (' + msg.text + ')';
         }
+    }
+
+    function showMessage(from, text, imageData, sticker, isMe) {
+        var messagesDiv = document.getElementById('messages');
+        if (!messagesDiv) return;
+        var div = document.createElement('div');
+        div.className = 'message ' + (isMe ? 'out' : 'in');
+        
+        var content = '<b>' + from + '</b><br>';
+        if (sticker) {
+            content += '<span class="sticker">' + sticker + '</span>';
+        }
+        if (imageData) {
+            content += '<img src="' + imageData + '" onclick="window.open(this.src)">';
+        }
+        if (text) {
+            content += text;
+        }
+        
+        div.innerHTML = content;
+        messagesDiv.appendChild(div);
+        messagesDiv.scrollTop = messagesDiv.scrollHeight;
     }
 
     function renderContacts() {
@@ -661,8 +798,6 @@
                 type: 'search_users',
                 text: query
             }));
-        } else if (resultsDiv) {
-            resultsDiv.innerHTML = '<div class="no-results">⚠️ Нет соединения с сервером</div>';
         }
     }
 
@@ -767,24 +902,20 @@
         clearSearch();
     }
 
-    function showMessage(from, text, isMe) {
-        var messagesDiv = document.getElementById('messages');
-        if (!messagesDiv) return;
-        var div = document.createElement('div');
-        div.className = 'message ' + (isMe ? 'out' : 'in');
-        div.innerHTML = '<b>' + from + '</b><br>' + text;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
     function send() {
         var text = document.getElementById('msg').value.trim();
-        if (!text || !currentChat) return;
+        if (!text && !currentChat) return;
+        if (!currentChat) {
+            showToast('Выберите чат', true);
+            return;
+        }
 
         ws.send(JSON.stringify({
             type: 'message',
             to: currentChat,
-            text: text
+            text: text,
+            imageData: '',
+            sticker: ''
         }));
 
         document.getElementById('msg').value = '';
@@ -819,7 +950,7 @@
         if (e.key === 'Enter') send();
     });
 
-    console.log("Скрипт загружен, ожидаем вход...");
+    console.log("Скрипт загружен");
 </script>
 
 </body>
