@@ -569,16 +569,21 @@ func handleChat(client *Client) {
 			}
 
 		case "select_group":
-			client.IsGroup = true
-			client.CurrentDialog = msg.To
-			history := getGroupHistory(msg.To)
-			for _, m := range history {
-				client.Conn.WriteJSON(m)
-			}
-			members := getGroupMembers(msg.To)
-			creator := getGroupCreator(msg.To)
-			client.Conn.WriteJSON(Message{Type: "member_list", Text: strings.Join(members, ","), GroupName: creator})
-
+    client.IsGroup = true
+    client.CurrentDialog = msg.To
+    history := getGroupHistory(msg.To)
+    for _, m := range history {
+        client.Conn.WriteJSON(m)
+    }
+    members := getGroupMembers(msg.To)
+    creator := getGroupCreator(msg.To)
+    groupName := getGroupName(msg.To)
+    client.Conn.WriteJSON(Message{
+        Type:      "member_list",
+        Text:      strings.Join(members, ","),
+        GroupName: groupName,
+        From:      creator,
+    })
 		case "create_group":
 			groupID := createGroup(msg.GroupName, client.Name)
 			if groupID != "" {
