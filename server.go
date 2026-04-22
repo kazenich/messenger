@@ -568,7 +568,7 @@ func handleChat(client *Client) {
 				client.Conn.WriteJSON(m)
 			}
 
-		case "select_group":
+	case "select_group":
     client.IsGroup = true
     client.CurrentDialog = msg.To
     history := getGroupHistory(msg.To)
