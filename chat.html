@@ -2,89 +2,499 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>Мессенджер - Вход</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Мессенджер</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#075e54">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Мессенджер">
     <style>
-        body { font-family: Arial; margin: 0; display: flex; height: 100vh; background: #f0f0f0; }
-        #auth {
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex; align-items: center; justify-content: center;
-            z-index: 1000;
-        }
-        #auth-box {
-            background: white; padding: 40px; border-radius: 10px;
-            width: 350px; box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-        }
-        #auth-box h2 { margin-top: 0; color: #333; text-align: center; }
-        .tabs {
-            display: flex; margin-bottom: 20px;
-            border-bottom: 2px solid #eee;
-        }
-        .tab {
-            flex: 1; padding: 10px; text-align: center;
-            cursor: pointer; color: #666;
-        }
-        .tab.active {
-            color: #667eea; border-bottom: 2px solid #667eea;
-            margin-bottom: -2px;
-        }
-        .auth-form { display: none; }
-        .auth-form.active { display: block; }
-        input[type="text"], input[type="password"] {
-            width: 100%; padding: 12px; margin: 10px 0;
-            border: 1px solid #ddd; border-radius: 5px;
+        * {
+            margin: 0;
+            padding: 0;
             box-sizing: border-box;
         }
-        .btn {
-            width: 100%; padding: 12px; background: #667eea;
-            color: white; border: none; border-radius: 5px;
-            cursor: pointer; font-size: 16px; margin-top: 10px;
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            display: flex;
+            height: 100vh;
+            background: #f0f0f0;
         }
-        .btn:hover { background: #5568d3; }
-        .error { color: #e74c3c; font-size: 14px; margin-top: 10px; text-align: center; }
-        .success { color: #27ae60; font-size: 14px; margin-top: 10px; text-align: center; }
-        #sidebar { width: 320px; background: white; border-right: 1px solid #ccc; overflow-y: auto; display: none; }
-        #chat { flex: 1; display: flex; flex-direction: column; display: none; }
-        #messages { flex: 1; overflow-y: auto; padding: 20px; background: #e5ddd5; }
-        .message { margin: 10px 0; padding: 10px; border-radius: 10px; max-width: 70%; }
-        .message img { max-width: 200px; max-height: 200px; border-radius: 10px; cursor: pointer; }
-        .message .sticker { font-size: 48px; cursor: pointer; }
-        .in { background: white; margin-right: auto; }
-        .out { background: #dcf8c6; margin-left: auto; text-align: right; }
-        #input { padding: 10px; background: #f0f0f0; display: flex; gap: 8px; align-items: center; }
-        #input input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
-        .contact { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #ddd; display: flex; justify-content: space-between; align-items: center; }
-        .contact:hover { background: #f5f5f5; }
-        .contact-name { flex: 1; }
-        .contact-actions { display: none; gap: 8px; }
-        .contact:hover .contact-actions { display: flex; }
-        .contact-actions button { padding: 4px 8px; font-size: 11px; background: #e74c3c; border: none; border-radius: 4px; cursor: pointer; color: white; }
-        .contact-actions button.add-btn { background: #27ae60; }
-        button { padding: 8px 16px; background: #075e54; color: white; border: none; cursor: pointer; border-radius: 5px; }
-        .contact-section { margin-top: 10px; }
-        .section-title { padding: 10px; background: #e0e0e0; font-weight: bold; font-size: 12px; color: #666; }
-        .search-box { padding: 10px; background: #f0f0f0; border-bottom: 1px solid #ddd; }
-        .search-box input { width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 20px; box-sizing: border-box; font-size: 14px; }
-        .search-results { max-height: 200px; overflow-y: auto; border-bottom: 1px solid #ddd; background: white; }
-        .search-result-item { padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .search-result-item:hover { background: #e3f2fd; }
-        .search-result-item button { padding: 4px 8px; font-size: 11px; background: #27ae60; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .no-results { padding: 10px; text-align: center; color: #999; font-size: 12px; }
-        .top-bar { padding: 10px; background: #f0f0f0; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #ddd; }
-        .top-bar button { padding: 5px 10px; font-size: 12px; background: #667eea; }
-        .add-contact-panel { padding: 10px; background: #fff; border-bottom: 1px solid #ddd; display: flex; gap: 8px; }
-        .add-contact-panel input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 5px; }
-        .add-contact-panel button { padding: 8px 12px; background: #27ae60; font-size: 12px; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 10px 20px; border-radius: 5px; z-index: 2000; animation: fadeOut 3s forwards; }
-        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-        .input-buttons { display: flex; gap: 5px; }
-        .input-buttons button { font-size: 18px; padding: 8px 12px; }
-        .sticker-panel { position: absolute; bottom: 80px; left: 10px; background: white; border: 1px solid #ddd; border-radius: 10px; padding: 10px; display: none; grid-template-columns: repeat(6, 1fr); gap: 5px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .sticker-panel span { font-size: 32px; cursor: pointer; padding: 5px; text-align: center; }
-        .sticker-panel span:hover { background: #f0f0f0; border-radius: 5px; }
+
+        /* Окно авторизации */
+        #auth {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(135deg, #075e54 0%, #128c7e 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+
+        #auth-box {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            width: 90%;
+            max-width: 350px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+        }
+
+        #auth-box h2 {
+            margin-top: 0;
+            margin-bottom: 20px;
+            color: #075e54;
+            text-align: center;
+            font-size: 28px;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 25px;
+            border-bottom: 2px solid #e0e0e0;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            color: #666;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .tab.active {
+            color: #075e54;
+            border-bottom: 2px solid #075e54;
+            margin-bottom: -2px;
+        }
+
+        .auth-form {
+            display: none;
+        }
+
+        .auth-form.active {
+            display: block;
+        }
+
+        input[type="text"],
+        input[type="password"] {
+            width: 100%;
+            padding: 14px;
+            margin: 10px 0;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 16px;
+            background: #f5f5f5;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #075e54;
+            background: white;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 14px;
+            background: #075e54;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 15px;
+            transition: background 0.3s;
+        }
+
+        .btn:hover {
+            background: #054a42;
+        }
+
+        .error {
+            color: #e74c3c;
+            font-size: 13px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        .success {
+            color: #27ae60;
+            font-size: 13px;
+            margin-top: 10px;
+            text-align: center;
+        }
+
+        /* Чат */
+        #sidebar {
+            width: 320px;
+            background: white;
+            border-right: 1px solid #e0e0e0;
+            overflow-y: auto;
+            display: none;
+            flex-direction: column;
+        }
+
+        #chat {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            display: none;
+            background: #e5ddd5;
+        }
+
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .message {
+            margin: 5px 0;
+            padding: 10px 14px;
+            border-radius: 18px;
+            max-width: 75%;
+            word-wrap: break-word;
+            position: relative;
+        }
+
+        .message img {
+            max-width: 200px;
+            max-height: 200px;
+            border-radius: 12px;
+            cursor: pointer;
+            margin-top: 5px;
+        }
+
+        .message .sticker {
+            font-size: 48px;
+            cursor: pointer;
+            display: inline-block;
+        }
+
+        .message .message-name {
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: #075e54;
+        }
+
+        .in {
+            background: white;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+
+        .out {
+            background: #dcf8c6;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message-time {
+            font-size: 10px;
+            color: #999;
+            margin-top: 4px;
+            text-align: right;
+        }
+
+        #input {
+            padding: 12px;
+            background: #f0f0f0;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-top: 1px solid #e0e0e0;
+        }
+
+        #input input {
+            flex: 1;
+            padding: 12px;
+            border: 1px solid #ddd;
+            border-radius: 25px;
+            font-size: 15px;
+            background: white;
+        }
+
+        .contact {
+            padding: 14px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .contact:hover {
+            background: #f5f5f5;
+        }
+
+        .contact-name {
+            flex: 1;
+            font-weight: 500;
+        }
+
+        .contact-actions {
+            display: none;
+            gap: 8px;
+        }
+
+        .contact:hover .contact-actions {
+            display: flex;
+        }
+
+        .contact-actions button {
+            padding: 4px 8px;
+            font-size: 11px;
+            background: #e74c3c;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            color: white;
+        }
+
+        .contact-actions button.add-btn {
+            background: #27ae60;
+        }
+
+        button {
+            padding: 10px 18px;
+            background: #075e54;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 25px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #054a42;
+        }
+
+        .contact-section {
+            margin-top: 5px;
+        }
+
+        .section-title {
+            padding: 10px 16px;
+            background: #f5f5f5;
+            font-weight: 600;
+            font-size: 12px;
+            color: #666;
+            letter-spacing: 0.5px;
+        }
+
+        .search-box {
+            padding: 12px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .search-box input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 25px;
+            box-sizing: border-box;
+            font-size: 14px;
+            background: #f5f5f5;
+        }
+
+        .search-results {
+            max-height: 250px;
+            overflow-y: auto;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .search-result-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .search-result-item:hover {
+            background: #f5f5f5;
+        }
+
+        .search-result-item button {
+            padding: 6px 12px;
+            font-size: 12px;
+            background: #27ae60;
+        }
+
+        .no-results {
+            padding: 20px;
+            text-align: center;
+            color: #999;
+            font-size: 13px;
+        }
+
+        .top-bar {
+            padding: 12px 16px;
+            background: #075e54;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .top-bar button {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        .top-bar button:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        .add-contact-panel {
+            padding: 12px;
+            background: white;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 8px;
+        }
+
+        .add-contact-panel input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #e0e0e0;
+            border-radius: 25px;
+            font-size: 14px;
+        }
+
+        .add-contact-panel button {
+            padding: 10px 16px;
+            background: #27ae60;
+            font-size: 13px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 30px;
+            z-index: 2000;
+            animation: fadeOut 3s forwards;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            70% { opacity: 1; }
+            100% { opacity: 0; visibility: hidden; }
+        }
+
+        .input-buttons {
+            display: flex;
+            gap: 5px;
+        }
+
+        .input-buttons button {
+            font-size: 18px;
+            padding: 8px 14px;
+            background: #075e54;
+        }
+
+        .sticker-panel {
+            position: absolute;
+            bottom: 80px;
+            left: 10px;
+            background: white;
+            border: 1px solid #e0e0e0;
+            border-radius: 16px;
+            padding: 12px;
+            display: none;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 8px;
+            z-index: 1000;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+        }
+
+        .sticker-panel span {
+            font-size: 36px;
+            cursor: pointer;
+            padding: 8px;
+            text-align: center;
+            border-radius: 12px;
+            transition: background 0.2s;
+        }
+
+        .sticker-panel span:hover {
+            background: #f0f0f0;
+        }
+
+        #header {
+            padding: 16px 20px;
+            background: #075e54;
+            color: white;
+            font-weight: 600;
+            font-size: 18px;
+        }
+
+        /* Адаптив для телефона */
+        @media (max-width: 768px) {
+            #sidebar {
+                width: 100%;
+                position: absolute;
+                left: -100%;
+                transition: left 0.3s;
+                z-index: 100;
+                height: 100%;
+            }
+            #sidebar.open {
+                left: 0;
+            }
+            .message {
+                max-width: 85%;
+            }
+            .toast {
+                white-space: normal;
+                text-align: center;
+                max-width: 80%;
+            }
+        }
+
+        .menu-btn {
+            display: none;
+            background: none;
+            font-size: 24px;
+            padding: 0 10px;
+        }
+
+        @media (max-width: 768px) {
+            .menu-btn {
+                display: block;
+            }
+        }
     </style>
 </head>
 <body>
+
 <div id="auth">
     <div id="auth-box">
         <h2>💬 Мессенджер</h2>
@@ -108,10 +518,11 @@
         </div>
     </div>
 </div>
+
 <div id="sidebar">
-    <div style="padding: 20px; background: #075e54; color: white;">
-        💬 Чаты
-        <button onclick="showCreateGroup()" style="float: right;">+</button>
+    <div style="padding: 16px 20px; background: #075e54; color: white; display: flex; justify-content: space-between; align-items: center;">
+        <span style="font-size: 20px; font-weight: 600;">💬 Чаты</span>
+        <button onclick="showCreateGroup()" style="background: rgba(255,255,255,0.2);">+ Группа</button>
     </div>
     <div class="top-bar">
         <span>Вы: <b id="my-name"></b></span>
@@ -121,7 +532,7 @@
         </div>
     </div>
     <div class="add-contact-panel">
-        <input type="text" id="new-contact-name" placeholder="Имя пользователя для добавления">
+        <input type="text" id="new-contact-name" placeholder="Имя для добавления">
         <button onclick="addContact()">➕ Добавить</button>
     </div>
     <div class="search-box">
@@ -130,18 +541,23 @@
     <div id="search-results" class="search-results" style="display: none;"></div>
     <div id="contacts"></div>
 </div>
+
 <div id="chat">
-    <div id="header" style="padding: 20px; background: #f0f0f0; font-weight: bold;">Выберите чат</div>
+    <div id="header" style="display: flex; align-items: center;">
+        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
+        <span style="flex:1; text-align: center;">Выберите чат</span>
+    </div>
     <div id="messages"></div>
     <div id="input" style="display: none">
         <input type="text" id="msg" placeholder="Сообщение...">
         <div class="input-buttons">
-            <button onclick="openStickerPanel()" style="background:#667eea;">😊</button>
-            <button onclick="sendPhoto()" style="background:#27ae60;">📷</button>
-            <button onclick="sendMessage()" style="background:#075e54;">📤</button>
+            <button onclick="openStickerPanel()">😊</button>
+            <button onclick="sendPhoto()">📷</button>
+            <button onclick="sendMessage()">📤</button>
         </div>
     </div>
 </div>
+
 <div id="sticker-panel" class="sticker-panel">
     <span onclick="sendSticker('😀')">😀</span>
     <span onclick="sendSticker('😂')">😂</span>
@@ -162,8 +578,13 @@
     <span onclick="sendSticker('⭐')">⭐</span>
     <span onclick="sendSticker('🍕')">🍕</span>
 </div>
+
 <script>
     var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [];
+    
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
     
     function showToast(message, isError) {
         var toast = document.createElement('div');
@@ -322,7 +743,7 @@
             if (msg.type === 'login_result') {
                 if (msg.success) {
                     document.getElementById('auth').style.display = 'none';
-                    document.getElementById('sidebar').style.display = 'block';
+                    document.getElementById('sidebar').style.display = 'flex';
                     document.getElementById('chat').style.display = 'flex';
                     document.getElementById('my-name').textContent = myName;
                     handleChatMessage(msg);
@@ -366,7 +787,7 @@
         } else if (msg.type === 'message') {
             showMessage(msg.from, msg.text, msg.imageData, msg.sticker, msg.from === myName);
         } else if (msg.type === 'member_list') {
-            document.getElementById('header').textContent += ' (' + msg.text + ')';
+            document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1; text-align:center;">👥 ' + msg.text + '</span>';
         }
     }
     
@@ -375,10 +796,14 @@
         if (!messagesDiv) return;
         var div = document.createElement('div');
         div.className = 'message ' + (isMe ? 'out' : 'in');
-        var content = '<b>' + from + '</b><br>';
+        var content = '';
+        if (!isMe) {
+            content += '<div class="message-name">' + from + '</div>';
+        }
         if (sticker) content += '<span class="sticker">' + sticker + '</span>';
         if (imageData) content += '<img src="' + imageData + '" onclick="window.open(this.src)">';
         if (text) content += text;
+        content += '<div class="message-time">' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + '</div>';
         div.innerHTML = content;
         messagesDiv.appendChild(div);
         messagesDiv.scrollTop = messagesDiv.scrollHeight;
@@ -399,7 +824,7 @@
             }
         });
         if (savedContacts.length === 0 || (savedContacts.length === 1 && savedContacts[0] === myName)) {
-            html += '<div style="padding: 10px; color: #999;">Нет сохранённых контактов</div>';
+            html += '<div style="padding: 20px; text-align: center; color: #999;">Нет сохранённых контактов</div>';
         }
         html += '</div><div class="contact-section"><div class="section-title">🟢 ОНЛАЙН</div><div id="online-users"></div></div>';
         contactsDiv.innerHTML = html;
@@ -420,7 +845,7 @@
                     '</div></div>';
             }
         });
-        if (html === '') html = '<div style="padding: 10px; color: #999;">Никого нет в сети</div>';
+        if (html === '') html = '<div style="padding: 20px; text-align: center; color: #999;">Никого нет в сети</div>';
         onlineDiv.innerHTML = html;
     }
     
@@ -513,21 +938,23 @@
     function selectUser(name) {
         currentChat = name;
         isGroup = false;
-        document.getElementById('header').textContent = '💬 ' + name;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1; text-align:center;">💬 ' + name + '</span>';
         document.getElementById('messages').innerHTML = '';
         document.getElementById('input').style.display = 'flex';
         ws.send(JSON.stringify({ type: 'select_dialog', to: name }));
         clearSearch();
+        if (window.innerWidth <= 768) toggleSidebar();
     }
     
     function selectGroup(id, name) {
         currentChat = id;
         isGroup = true;
-        document.getElementById('header').textContent = '👥 ' + name;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1; text-align:center;">👥 ' + name + '</span>';
         document.getElementById('messages').innerHTML = '';
         document.getElementById('input').style.display = 'flex';
         ws.send(JSON.stringify({ type: 'select_group', to: id }));
         clearSearch();
+        if (window.innerWidth <= 768) toggleSidebar();
     }
     
     function showCreateGroup() {
@@ -543,7 +970,17 @@
         if (e.key === 'Enter') sendMessage();
     });
     
+    // Service Worker для PWA
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').then(function(reg) {
+            console.log('Service Worker зарегистрирован', reg);
+        }).catch(function(err) {
+            console.log('Ошибка регистрации Service Worker', err);
+        });
+    }
+    
     console.log("Скрипт загружен, кнопки: 😊 📷 📤");
 </script>
+
 </body>
 </html>
