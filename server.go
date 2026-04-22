@@ -111,30 +111,19 @@ func initDB() {
 }
 
 func saveDialog(userName, contactName string) {
-	db.Exec(`
-		INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) 
-		VALUES (?, ?, CURRENT_TIMESTAMP)
-	`, userName, contactName)
+	db.Exec(`INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) VALUES (?, ?, CURRENT_TIMESTAMP)`, userName, contactName)
 }
 
 func deleteDialog(userName, contactName string) {
-	db.Exec(`
-		DELETE FROM user_dialogs 
-		WHERE user_name = ? AND contact_name = ?
-	`, userName, contactName)
+	db.Exec(`DELETE FROM user_dialogs WHERE user_name = ? AND contact_name = ?`, userName, contactName)
 }
 
 func getUserDialogs(userName string) []string {
-	rows, err := db.Query(`
-		SELECT contact_name FROM user_dialogs 
-		WHERE user_name = ? 
-		ORDER BY last_message_time DESC
-	`, userName)
+	rows, err := db.Query(`SELECT contact_name FROM user_dialogs WHERE user_name = ? ORDER BY last_message_time DESC`, userName)
 	if err != nil {
 		return nil
 	}
 	defer rows.Close()
-
 	var contacts []string
 	for rows.Next() {
 		var contact string
@@ -150,43 +139,27 @@ func addContact(userName, contactName string) error {
 	if err != nil {
 		return fmt.Errorf("user_not_found")
 	}
-	
 	if userName == contactName {
 		return fmt.Errorf("cannot_add_self")
 	}
-	
-	db.Exec(`
-		INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) 
-		VALUES (?, ?, CURRENT_TIMESTAMP)
-	`, userName, contactName)
-	
+	db.Exec(`INSERT OR REPLACE INTO user_dialogs (user_name, contact_name, last_message_time) VALUES (?, ?, CURRENT_TIMESTAMP)`, userName, contactName)
 	return nil
 }
 
 func saveUserGroup(userName, groupID, groupName string) {
-	db.Exec(`
-		INSERT OR IGNORE INTO user_groups (user_name, group_id, group_name) 
-		VALUES (?, ?, ?)
-	`, userName, groupID, groupName)
+	db.Exec(`INSERT OR IGNORE INTO user_groups (user_name, group_id, group_name) VALUES (?, ?, ?)`, userName, groupID, groupName)
 }
 
 func deleteUserGroup(userName, groupID string) {
-	db.Exec(`
-		DELETE FROM user_groups 
-		WHERE user_name = ? AND group_id = ?
-	`, userName, groupID)
+	db.Exec(`DELETE FROM user_groups WHERE user_name = ? AND group_id = ?`, userName, groupID)
 }
 
 func getUserGroupsFromDB(userName string) []struct{ ID, Name string } {
-	rows, err := db.Query(`
-		SELECT group_id, group_name FROM user_groups 
-		WHERE user_name = ?
-	`, userName)
+	rows, err := db.Query(`SELECT group_id, group_name FROM user_groups WHERE user_name = ?`, userName)
 	if err != nil {
 		return nil
 	}
 	defer rows.Close()
-
 	var groups []struct{ ID, Name string }
 	for rows.Next() {
 		var g struct{ ID, Name string }
@@ -202,12 +175,10 @@ func registerUser(username, password string) error {
 	if err == nil {
 		return fmt.Errorf("user_exists")
 	}
-
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return err
 	}
-
 	_, err = db.Exec("INSERT INTO users (username, password_hash) VALUES (?, ?)", username, string(hash))
 	return err
 }
@@ -218,7 +189,6 @@ func loginUser(username, password string) bool {
 	if err != nil {
 		return false
 	}
-
 	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
 	return err == nil
 }
@@ -232,29 +202,19 @@ func getDialogKey(u1, u2 string) string {
 
 func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
 	if isGroup {
-		_, err := db.Exec("INSERT INTO private_messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		db.Exec("INSERT INTO private_messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 			from, to, text, imageData, sticker, time.Now().Format("15:04"), 1, groupID)
-		if err != nil {
-			fmt.Println("Ошибка сохранения:", err)
-		}
 	} else {
 		key := getDialogKey(from, to)
-		_, err := db.Exec("INSERT INTO private_messages (dialog_key, from_user, to_user, text, image_data, sticker, time, is_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+		db.Exec("INSERT INTO private_messages (dialog_key, from_user, to_user, text, image_data, sticker, time, is_group) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 			key, from, to, text, imageData, sticker, time.Now().Format("15:04"), 0)
-		if err != nil {
-			fmt.Println("Ошибка сохранения:", err)
-		}
 	}
 }
 
 func getPrivateHistory(u1, u2 string) []Message {
 	key := getDialogKey(u1, u2)
-	rows, err := db.Query("SELECT from_user, text, image_data, sticker, time FROM private_messages WHERE dialog_key = ? AND is_group = 0 ORDER BY id ASC LIMIT 50", key)
-	if err != nil {
-		return nil
-	}
+	rows, _ := db.Query("SELECT from_user, text, image_data, sticker, time FROM private_messages WHERE dialog_key = ? AND is_group = 0 ORDER BY id ASC LIMIT 50", key)
 	defer rows.Close()
-
 	var messages []Message
 	for rows.Next() {
 		var m Message
@@ -266,12 +226,8 @@ func getPrivateHistory(u1, u2 string) []Message {
 }
 
 func getGroupHistory(groupID string) []Message {
-	rows, err := db.Query("SELECT from_user, text, image_data, sticker, time FROM private_messages WHERE group_id = ? ORDER BY id ASC LIMIT 50", groupID)
-	if err != nil {
-		return nil
-	}
+	rows, _ := db.Query("SELECT from_user, text, image_data, sticker, time FROM private_messages WHERE group_id = ? ORDER BY id ASC LIMIT 50", groupID)
 	defer rows.Close()
-
 	var messages []Message
 	for rows.Next() {
 		var m Message
@@ -284,86 +240,47 @@ func getGroupHistory(groupID string) []Message {
 
 func createGroup(name, creator string) string {
 	groupID := "group_" + fmt.Sprintf("%d", time.Now().Unix())
-	_, err := db.Exec("INSERT INTO groups (id, name, creator) VALUES (?, ?, ?)", groupID, name, creator)
-	if err != nil {
-		fmt.Println("Ошибка создания группы:", err)
-		return ""
-	}
+	db.Exec("INSERT INTO groups (id, name, creator) VALUES (?, ?, ?)", groupID, name, creator)
 	db.Exec("INSERT INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, creator)
+	saveUserGroup(creator, groupID, name)
 	return groupID
 }
 
 func addMemberToGroup(groupID, userName, adminName string) error {
-	// Проверяем, существует ли группа
 	var creator string
-	err := db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
-	if err != nil {
-		return fmt.Errorf("group_not_found")
-	}
-	
-	// Проверяем, что добавляющий — создатель группы
+	db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
 	if creator != adminName {
 		return fmt.Errorf("not_creator")
 	}
-	
-	// Проверяем, существует ли пользователь
 	var exists int
-	err = db.QueryRow("SELECT 1 FROM users WHERE username = ?", userName).Scan(&exists)
-	if err != nil {
+	db.QueryRow("SELECT 1 FROM users WHERE username = ?", userName).Scan(&exists)
+	if exists == 0 {
 		return fmt.Errorf("user_not_found")
 	}
-	
-	// Добавляем участника
-	_, err = db.Exec("INSERT OR IGNORE INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, userName)
-	if err != nil {
-		return fmt.Errorf("add_failed")
-	}
-	
-	// Добавляем группу в список групп пользователя
+	db.Exec("INSERT OR IGNORE INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, userName)
 	var groupName string
 	db.QueryRow("SELECT name FROM groups WHERE id = ?", groupID).Scan(&groupName)
 	saveUserGroup(userName, groupID, groupName)
-	
 	return nil
 }
 
 func removeMemberFromGroup(groupID, userName, adminName string) error {
-	// Проверяем, существует ли группа
 	var creator string
-	err := db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
-	if err != nil {
-		return fmt.Errorf("group_not_found")
-	}
-	
-	// Проверяем, что удаляющий — создатель группы
+	db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
 	if creator != adminName {
 		return fmt.Errorf("not_creator")
 	}
-	
-	// Нельзя удалить создателя
 	if userName == creator {
 		return fmt.Errorf("cannot_remove_creator")
 	}
-	
-	// Удаляем участника
-	_, err = db.Exec("DELETE FROM group_members WHERE group_id = ? AND user_name = ?", groupID, userName)
-	if err != nil {
-		return fmt.Errorf("remove_failed")
-	}
-	
-	// Удаляем группу из списка групп пользователя
+	db.Exec("DELETE FROM group_members WHERE group_id = ? AND user_name = ?", groupID, userName)
 	deleteUserGroup(userName, groupID)
-	
 	return nil
 }
 
 func getGroupMembers(groupID string) []string {
-	rows, err := db.Query("SELECT user_name FROM group_members WHERE group_id = ?", groupID)
-	if err != nil {
-		return nil
-	}
+	rows, _ := db.Query("SELECT user_name FROM group_members WHERE group_id = ?", groupID)
 	defer rows.Close()
-
 	var members []string
 	for rows.Next() {
 		var m string
@@ -386,17 +303,8 @@ func getGroupCreator(groupID string) string {
 }
 
 func searchUsers(query, currentUser string) []string {
-	rows, err := db.Query(`
-		SELECT username FROM users 
-		WHERE username LIKE ? AND username != ?
-		LIMIT 10
-	`, "%"+query+"%", currentUser)
-	if err != nil {
-		fmt.Println("Ошибка поиска:", err)
-		return nil
-	}
+	rows, _ := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", currentUser)
 	defer rows.Close()
-
 	var users []string
 	for rows.Next() {
 		var user string
@@ -407,12 +315,8 @@ func searchUsers(query, currentUser string) []string {
 }
 
 func getAllUsersFromDB(currentUser string) []string {
-	rows, err := db.Query("SELECT username FROM users WHERE username != ?", currentUser)
-	if err != nil {
-		return nil
-	}
+	rows, _ := db.Query("SELECT username FROM users WHERE username != ?", currentUser)
 	defer rows.Close()
-
 	var users []string
 	for rows.Next() {
 		var user string
@@ -425,7 +329,6 @@ func getAllUsersFromDB(currentUser string) []string {
 func getOnlineUsers(except string) []string {
 	mutex.Lock()
 	defer mutex.Unlock()
-
 	var users []string
 	for client := range clients {
 		if client.Name != except {
@@ -439,13 +342,11 @@ func getOnlineUsers(except string) []string {
 func broadcastOnlineList() {
 	mutex.Lock()
 	defer mutex.Unlock()
-
 	users := []string{}
 	for c := range clients {
 		users = append(users, c.Name)
 	}
 	sort.Strings(users)
-
 	msg := Message{Type: "online", Text: strings.Join(users, ",")}
 	for c := range clients {
 		c.Conn.WriteJSON(msg)
@@ -458,10 +359,31 @@ func sendGroupList(client *Client) {
 	for _, g := range groups {
 		list = append(list, g.ID+"|"+g.Name)
 	}
-	client.Conn.WriteJSON(Message{
-		Type: "group_list",
-		Text: strings.Join(list, ","),
-	})
+	client.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(list, ",")})
+}
+
+func broadcastGroupListToAll() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	for c := range clients {
+		sendGroupList(c)
+	}
+}
+
+func broadcastGroupMembers(groupID string, members []string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	creator := getGroupCreator(groupID)
+	groupName := getGroupName(groupID)
+	msg := Message{Type: "member_list", Text: strings.Join(members, ","), GroupName: groupName, From: creator}
+	for c := range clients {
+		for _, member := range members {
+			if c.Name == member {
+				c.Conn.WriteJSON(msg)
+				break
+			}
+		}
+	}
 }
 
 func main() {
@@ -568,22 +490,23 @@ func handleChat(client *Client) {
 				client.Conn.WriteJSON(m)
 			}
 
-	case "select_group":
-    client.IsGroup = true
-    client.CurrentDialog = msg.To
-    history := getGroupHistory(msg.To)
-    for _, m := range history {
-        client.Conn.WriteJSON(m)
-    }
-    members := getGroupMembers(msg.To)
-    creator := getGroupCreator(msg.To)
-    groupName := getGroupName(msg.To)
-    client.Conn.WriteJSON(Message{
-        Type:      "member_list",
-        Text:      strings.Join(members, ","),
-        GroupName: groupName,
-        From:      creator,
-    })
+		case "select_group":
+			client.IsGroup = true
+			client.CurrentDialog = msg.To
+			history := getGroupHistory(msg.To)
+			for _, m := range history {
+				client.Conn.WriteJSON(m)
+			}
+			members := getGroupMembers(msg.To)
+			creator := getGroupCreator(msg.To)
+			groupName := getGroupName(msg.To)
+			client.Conn.WriteJSON(Message{
+				Type:      "member_list",
+				Text:      strings.Join(members, ","),
+				GroupName: groupName,
+				From:      creator,
+			})
+
 		case "create_group":
 			groupID := createGroup(msg.GroupName, client.Name)
 			if groupID != "" {
@@ -594,9 +517,8 @@ func handleChat(client *Client) {
 						addMemberToGroup(groupID, m, client.Name)
 					}
 				}
-				saveUserGroup(client.Name, groupID, msg.GroupName)
-				client.Conn.WriteJSON(Message{Type: "group_created", To: groupID, GroupName: msg.GroupName})
 				broadcastGroupListToAll()
+				client.Conn.WriteJSON(Message{Type: "group_created", Success: true, Text: "Группа создана"})
 			}
 
 		case "add_group_member":
@@ -606,7 +528,6 @@ func handleChat(client *Client) {
 			if err != nil {
 				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: false, Error: err.Error()})
 			} else {
-				// Обновляем список участников для всех в группе
 				members := getGroupMembers(groupID)
 				broadcastGroupMembers(groupID, members)
 				broadcastGroupListToAll()
@@ -620,7 +541,6 @@ func handleChat(client *Client) {
 			if err != nil {
 				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: false, Error: err.Error()})
 			} else {
-				// Обновляем список участников для всех в группе
 				members := getGroupMembers(groupID)
 				broadcastGroupMembers(groupID, members)
 				broadcastGroupListToAll()
@@ -634,17 +554,11 @@ func handleChat(client *Client) {
 				return
 			}
 			users := searchUsers(query, client.Name)
-			client.Conn.WriteJSON(Message{
-				Type: "search_results",
-				Text: strings.Join(users, ","),
-			})
+			client.Conn.WriteJSON(Message{Type: "search_results", Text: strings.Join(users, ",")})
 
 		case "get_users":
 			users := getAllUsersFromDB(client.Name)
-			client.Conn.WriteJSON(Message{
-				Type: "user_list",
-				Text: strings.Join(users, ","),
-			})
+			client.Conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(users, ",")})
 
 		case "add_contact":
 			contactName := msg.Text
@@ -658,37 +572,19 @@ func handleChat(client *Client) {
 				} else {
 					errorMsg = "Ошибка добавления контакта"
 				}
-				client.Conn.WriteJSON(Message{
-					Type:    "add_contact_result",
-					Success: false,
-					Error:   errorMsg,
-				})
+				client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: false, Error: errorMsg})
 			} else {
 				contacts := getUserDialogs(client.Name)
-				client.Conn.WriteJSON(Message{
-					Type:    "contact_list",
-					Text:    strings.Join(contacts, ","),
-				})
-				client.Conn.WriteJSON(Message{
-					Type:    "add_contact_result",
-					Success: true,
-					Text:    "Контакт добавлен",
-				})
+				client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+				client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: true, Text: "Контакт добавлен"})
 			}
 
 		case "delete_contact":
 			contactName := msg.Text
 			deleteDialog(client.Name, contactName)
 			contacts := getUserDialogs(client.Name)
-			client.Conn.WriteJSON(Message{
-				Type:    "contact_list",
-				Text:    strings.Join(contacts, ","),
-			})
-			client.Conn.WriteJSON(Message{
-				Type:    "delete_contact_result",
-				Success: true,
-				Text:    "Контакт удалён",
-			})
+			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+			client.Conn.WriteJSON(Message{Type: "delete_contact_result", Success: true, Text: "Контакт удалён"})
 
 		case "message":
 			if client.IsGroup {
@@ -753,28 +649,5 @@ func handleChat(client *Client) {
 				mutex.Unlock()
 			}
 		}
-	}
-}
-
-func broadcastGroupMembers(groupID string, members []string) {
-	mutex.Lock()
-	defer mutex.Unlock()
-	
-	msg := Message{Type: "member_list", Text: strings.Join(members, ","), GroupName: getGroupCreator(groupID)}
-	for c := range clients {
-		for _, member := range members {
-			if c.Name == member {
-				c.Conn.WriteJSON(msg)
-				break
-			}
-		}
-	}
-}
-
-func broadcastGroupListToAll() {
-	mutex.Lock()
-	defer mutex.Unlock()
-	for c := range clients {
-		sendGroupList(c)
 	}
 }
