@@ -24,7 +24,6 @@
             background: #f0f0f0;
         }
 
-        /* Окно авторизации */
         #auth {
             position: fixed;
             top: 0;
@@ -135,7 +134,6 @@
             text-align: center;
         }
 
-        /* Чат */
         #sidebar {
             width: 320px;
             background: white;
@@ -454,9 +452,23 @@
             color: white;
             font-weight: 600;
             font-size: 18px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
-        /* Адаптив для телефона */
+        .group-buttons {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .group-buttons button {
+            background: rgba(255,255,255,0.2);
+            padding: 6px 12px;
+            font-size: 14px;
+        }
+
         @media (max-width: 768px) {
             #sidebar {
                 width: 100%;
@@ -477,19 +489,30 @@
                 text-align: center;
                 max-width: 80%;
             }
+            .menu-btn {
+                display: block;
+                background: none;
+                font-size: 24px;
+                padding: 0 10px;
+                margin-right: 10px;
+            }
+            .group-buttons button {
+                padding: 4px 8px;
+                font-size: 11px;
+            }
         }
 
         .menu-btn {
             display: none;
             background: none;
             font-size: 24px;
-            padding: 0 10px;
+            padding: 0;
+            margin-right: 10px;
+            width: 40px;
         }
 
-        @media (max-width: 768px) {
-            .menu-btn {
-                display: block;
-            }
+        .menu-btn:hover {
+            background: rgba(255,255,255,0.2);
         }
     </style>
 </head>
@@ -543,9 +566,9 @@
 </div>
 
 <div id="chat">
-    <div id="header" style="display: flex; align-items: center;">
+    <div id="header">
         <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-        <span style="flex:1; text-align: center;">Выберите чат</span>
+        <span style="flex:1;">Выберите чат</span>
     </div>
     <div id="messages"></div>
     <div id="input" style="display: none">
@@ -580,7 +603,7 @@
 </div>
 
 <script>
-    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [];
+    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [], currentGroupCreator = '';
     
     function toggleSidebar() {
         document.getElementById('sidebar').classList.toggle('open');
@@ -761,6 +784,8 @@
     }
     
     function handleChatMessage(msg) {
+        console.log("Получено:", msg.type, msg);
+        
         if (msg.type === 'online') {
             updateOnlineUsers(msg.text ? msg.text.split(',') : []);
         } else if (msg.type === 'group_list') {
@@ -782,12 +807,25 @@
             }
         } else if (msg.type === 'delete_contact_result') {
             showToast(msg.text || 'Контакт удалён');
+        } else if (msg.type === 'group_action_result') {
+            if (msg.success) {
+                showToast(msg.text || 'Готово');
+            } else {
+                showToast(msg.error || 'Ошибка', true);
+            }
         } else if (msg.type === 'history') {
             showMessage(msg.from, msg.text, msg.imageData, msg.sticker, false);
         } else if (msg.type === 'message') {
             showMessage(msg.from, msg.text, msg.imageData, msg.sticker, msg.from === myName);
         } else if (msg.type === 'member_list') {
-            document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1; text-align:center;">👥 ' + msg.text + '</span>';
+            currentGroupCreator = msg.GroupName || '';
+            var memberCount = msg.text ? msg.text.split(',').length : 0;
+            var groupName = currentChatName || 'Группа';
+            var buttons = '';
+            if (currentGroupCreator === myName) {
+                buttons = '<div class="group-buttons"><button onclick="addMemberToGroup()">+</button><button onclick="removeMemberFromGroup()">-</button></div>';
+            }
+            document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + groupName + ' (' + memberCount + ')</span>' + buttons;
         }
     }
     
@@ -935,10 +973,45 @@
         document.getElementById('search-results').innerHTML = '';
     }
     
+    function addMemberToGroup() {
+        if (!currentChat || !isGroup) {
+            showToast('Выберите группу', true);
+            return;
+        }
+        var username = prompt('Введите имя пользователя для добавления в группу:');
+        if (username && username.trim() && username.trim() !== myName) {
+            ws.send(JSON.stringify({
+                type: 'add_group_member',
+                to: currentChat,
+                text: username.trim()
+            }));
+        } else if (username === myName) {
+            showToast('Нельзя добавить самого себя', true);
+        }
+    }
+    
+    function removeMemberFromGroup() {
+        if (!currentChat || !isGroup) {
+            showToast('Выберите группу', true);
+            return;
+        }
+        var username = prompt('Введите имя пользователя для удаления из группы:');
+        if (username && username.trim()) {
+            ws.send(JSON.stringify({
+                type: 'remove_group_member',
+                to: currentChat,
+                text: username.trim()
+            }));
+        }
+    }
+    
+    var currentChatName = '';
+    
     function selectUser(name) {
         currentChat = name;
         isGroup = false;
-        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1; text-align:center;">💬 ' + name + '</span>';
+        currentChatName = name;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">💬 ' + name + '</span>';
         document.getElementById('messages').innerHTML = '';
         document.getElementById('input').style.display = 'flex';
         ws.send(JSON.stringify({ type: 'select_dialog', to: name }));
@@ -949,7 +1022,8 @@
     function selectGroup(id, name) {
         currentChat = id;
         isGroup = true;
-        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1; text-align:center;">👥 ' + name + '</span>';
+        currentChatName = name;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + name + '</span>';
         document.getElementById('messages').innerHTML = '';
         document.getElementById('input').style.display = 'flex';
         ws.send(JSON.stringify({ type: 'select_group', to: id }));
@@ -970,7 +1044,6 @@
         if (e.key === 'Enter') sendMessage();
     });
     
-    // Service Worker для PWA
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js').then(function(reg) {
             console.log('Service Worker зарегистрирован', reg);
@@ -979,7 +1052,7 @@
         });
     }
     
-    console.log("Скрипт загружен, кнопки: 😊 📷 📤");
+    console.log("Скрипт загружен, группы: добавление/удаление участников");
 </script>
 
 </body>

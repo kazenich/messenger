@@ -170,6 +170,13 @@ func saveUserGroup(userName, groupID, groupName string) {
 	`, userName, groupID, groupName)
 }
 
+func deleteUserGroup(userName, groupID string) {
+	db.Exec(`
+		DELETE FROM user_groups 
+		WHERE user_name = ? AND group_id = ?
+	`, userName, groupID)
+}
+
 func getUserGroupsFromDB(userName string) []struct{ ID, Name string } {
 	rows, err := db.Query(`
 		SELECT group_id, group_name FROM user_groups 
@@ -286,9 +293,68 @@ func createGroup(name, creator string) string {
 	return groupID
 }
 
-func joinGroup(groupID, userName string) bool {
-	_, err := db.Exec("INSERT OR IGNORE INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, userName)
-	return err == nil
+func addMemberToGroup(groupID, userName, adminName string) error {
+	// Проверяем, существует ли группа
+	var creator string
+	err := db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
+	if err != nil {
+		return fmt.Errorf("group_not_found")
+	}
+	
+	// Проверяем, что добавляющий — создатель группы
+	if creator != adminName {
+		return fmt.Errorf("not_creator")
+	}
+	
+	// Проверяем, существует ли пользователь
+	var exists int
+	err = db.QueryRow("SELECT 1 FROM users WHERE username = ?", userName).Scan(&exists)
+	if err != nil {
+		return fmt.Errorf("user_not_found")
+	}
+	
+	// Добавляем участника
+	_, err = db.Exec("INSERT OR IGNORE INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, userName)
+	if err != nil {
+		return fmt.Errorf("add_failed")
+	}
+	
+	// Добавляем группу в список групп пользователя
+	var groupName string
+	db.QueryRow("SELECT name FROM groups WHERE id = ?", groupID).Scan(&groupName)
+	saveUserGroup(userName, groupID, groupName)
+	
+	return nil
+}
+
+func removeMemberFromGroup(groupID, userName, adminName string) error {
+	// Проверяем, существует ли группа
+	var creator string
+	err := db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
+	if err != nil {
+		return fmt.Errorf("group_not_found")
+	}
+	
+	// Проверяем, что удаляющий — создатель группы
+	if creator != adminName {
+		return fmt.Errorf("not_creator")
+	}
+	
+	// Нельзя удалить создателя
+	if userName == creator {
+		return fmt.Errorf("cannot_remove_creator")
+	}
+	
+	// Удаляем участника
+	_, err = db.Exec("DELETE FROM group_members WHERE group_id = ? AND user_name = ?", groupID, userName)
+	if err != nil {
+		return fmt.Errorf("remove_failed")
+	}
+	
+	// Удаляем группу из списка групп пользователя
+	deleteUserGroup(userName, groupID)
+	
+	return nil
 }
 
 func getGroupMembers(groupID string) []string {
@@ -311,6 +377,12 @@ func getGroupName(groupID string) string {
 	var name string
 	db.QueryRow("SELECT name FROM groups WHERE id = ?", groupID).Scan(&name)
 	return name
+}
+
+func getGroupCreator(groupID string) string {
+	var creator string
+	db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
+	return creator
 }
 
 func searchUsers(query, currentUser string) []string {
@@ -504,7 +576,8 @@ func handleChat(client *Client) {
 				client.Conn.WriteJSON(m)
 			}
 			members := getGroupMembers(msg.To)
-			client.Conn.WriteJSON(Message{Type: "member_list", Text: strings.Join(members, ",")})
+			creator := getGroupCreator(msg.To)
+			client.Conn.WriteJSON(Message{Type: "member_list", Text: strings.Join(members, ","), GroupName: creator})
 
 		case "create_group":
 			groupID := createGroup(msg.GroupName, client.Name)
@@ -513,13 +586,40 @@ func handleChat(client *Client) {
 				for _, m := range members {
 					m = strings.TrimSpace(m)
 					if m != client.Name && m != "" {
-						joinGroup(groupID, m)
-						saveUserGroup(m, groupID, msg.GroupName)
+						addMemberToGroup(groupID, m, client.Name)
 					}
 				}
 				saveUserGroup(client.Name, groupID, msg.GroupName)
 				client.Conn.WriteJSON(Message{Type: "group_created", To: groupID, GroupName: msg.GroupName})
 				broadcastGroupListToAll()
+			}
+
+		case "add_group_member":
+			groupID := msg.To
+			userName := msg.Text
+			err := addMemberToGroup(groupID, userName, client.Name)
+			if err != nil {
+				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: false, Error: err.Error()})
+			} else {
+				// Обновляем список участников для всех в группе
+				members := getGroupMembers(groupID)
+				broadcastGroupMembers(groupID, members)
+				broadcastGroupListToAll()
+				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true, Text: "Участник добавлен"})
+			}
+
+		case "remove_group_member":
+			groupID := msg.To
+			userName := msg.Text
+			err := removeMemberFromGroup(groupID, userName, client.Name)
+			if err != nil {
+				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: false, Error: err.Error()})
+			} else {
+				// Обновляем список участников для всех в группе
+				members := getGroupMembers(groupID)
+				broadcastGroupMembers(groupID, members)
+				broadcastGroupListToAll()
+				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true, Text: "Участник удалён"})
 			}
 
 		case "search_users":
@@ -646,6 +746,21 @@ func handleChat(client *Client) {
 					}
 				}
 				mutex.Unlock()
+			}
+		}
+	}
+}
+
+func broadcastGroupMembers(groupID string, members []string) {
+	mutex.Lock()
+	defer mutex.Unlock()
+	
+	msg := Message{Type: "member_list", Text: strings.Join(members, ","), GroupName: getGroupCreator(groupID)}
+	for c := range clients {
+		for _, member := range members {
+			if c.Name == member {
+				c.Conn.WriteJSON(msg)
+				break
 			}
 		}
 	}
