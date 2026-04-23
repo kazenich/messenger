@@ -53,16 +53,12 @@ func initDB() {
 		panic(err)
 	}
 
-	fmt.Println("База данных SQLite подключена")
-
-	// Таблица пользователей
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		username TEXT PRIMARY KEY,
 		password_hash TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 
-	// Таблица сообщений
 	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		from_user TEXT,
@@ -76,7 +72,6 @@ func initDB() {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 
-	// Таблица групп
 	db.Exec(`CREATE TABLE IF NOT EXISTS groups (
 		id TEXT PRIMARY KEY,
 		name TEXT,
@@ -84,7 +79,6 @@ func initDB() {
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
 
-	// Участники групп
 	db.Exec(`CREATE TABLE IF NOT EXISTS group_members (
 		group_id TEXT,
 		user_name TEXT,
@@ -92,7 +86,6 @@ func initDB() {
 		PRIMARY KEY (group_id, user_name)
 	)`)
 
-	// Сохранённые контакты
 	db.Exec(`CREATE TABLE IF NOT EXISTS contacts (
 		user_name TEXT,
 		contact_name TEXT,
@@ -124,21 +117,15 @@ func loginUser(username, password string) bool {
 }
 
 func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
-	_, err := db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
+	db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroup, groupID)
-	if err != nil {
-		fmt.Println("Ошибка сохранения сообщения:", err)
-	}
 }
 
 func getPrivateHistory(u1, u2 string) []Message {
-	rows, err := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
+	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
 		WHERE is_group = 0 AND ((from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?)) 
 		ORDER BY id ASC LIMIT 50`, u1, u2, u2, u1)
-	if err != nil {
-		return nil
-	}
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
@@ -151,11 +138,8 @@ func getPrivateHistory(u1, u2 string) []Message {
 }
 
 func getGroupHistory(groupID string) []Message {
-	rows, err := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
+	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
 		WHERE is_group = 1 AND group_id = ? ORDER BY id ASC LIMIT 50`, groupID)
-	if err != nil {
-		return nil
-	}
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
