@@ -4,53 +4,66 @@
     <meta charset="UTF-8">
     <title>Мессенджер</title>
     <style>
-        body { font-family: Arial; text-align: center; padding: 20px; }
-        #auth { max-width: 300px; margin: 0 auto; }
-        #chat { display: none; max-width: 600px; margin: 0 auto; }
+        body { font-family: Arial; text-align: center; padding: 20px; background: #075e54; color: white; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; color: black; }
         input, button { padding: 10px; margin: 5px; width: 90%; }
         .error { color: red; }
         .success { color: green; }
-        #messages { height: 300px; border: 1px solid #ccc; overflow-y: auto; margin: 10px 0; padding: 10px; text-align: left; }
-        .message { margin: 5px; padding: 5px; background: #eee; border-radius: 5px; }
+        #messages { height: 300px; border: 1px solid #ccc; overflow-y: auto; margin: 10px 0; padding: 10px; text-align: left; background: #e5ddd5; }
+        .message { margin: 5px; padding: 8px; background: white; border-radius: 8px; }
+        .my-message { background: #dcf8c6; text-align: right; }
     </style>
 </head>
 <body>
+<div class="container">
+    <div id="auth">
+        <h2>💬 Мессенджер</h2>
+        
+        <input type="text" id="login-username" placeholder="Имя"><br>
+        <input type="password" id="login-password" placeholder="Пароль"><br>
+        <button onclick="doLogin()">Войти</button>
+        <div id="login-error" class="error"></div>
+        
+        <hr>
+        <h3>Регистрация</h3>
+        <input type="text" id="reg-username" placeholder="Имя"><br>
+        <input type="password" id="reg-password" placeholder="Пароль"><br>
+        <input type="password" id="reg-password2" placeholder="Повторите"><br>
+        <button onclick="doRegister()">Зарегистрироваться</button>
+        <div id="reg-error" class="error"></div>
+        <div id="reg-success" class="success"></div>
+    </div>
 
-<div id="auth">
-    <h2>Мессенджер</h2>
-    <input type="text" id="login-username" placeholder="Имя"><br>
-    <input type="password" id="login-password" placeholder="Пароль"><br>
-    <button onclick="doLogin()">Войти</button>
-    <div id="login-error" class="error"></div>
-    <hr>
-    <h3>Регистрация</h3>
-    <input type="text" id="reg-username" placeholder="Имя"><br>
-    <input type="password" id="reg-password" placeholder="Пароль"><br>
-    <input type="password" id="reg-password2" placeholder="Повторите"><br>
-    <button onclick="doRegister()">Зарегистрироваться</button>
-    <div id="reg-error" class="error"></div>
-    <div id="reg-success" class="success"></div>
-</div>
-
-<div id="chat">
-    <h3>Чат: <span id="chat-title"></span></h3>
-    <div id="messages"></div>
-    <input type="text" id="msg" placeholder="Сообщение">
-    <button onclick="sendMsg()">Отправить</button>
-    <button onclick="logout()">Выход</button>
+    <div id="chat" style="display:none;">
+        <h3>Чат: <span id="chat-title"></span></h3>
+        <div id="messages"></div>
+        <input type="text" id="msg" placeholder="Сообщение">
+        <button onclick="sendMsg()">Отправить</button>
+        <button onclick="logout()">Выход</button>
+    </div>
 </div>
 
 <script>
     var ws = null;
     var myName = '';
     
+    function showToast(msg, isError) {
+        console.log(msg);
+    }
+    
     function doRegister() {
         var u = document.getElementById('reg-username').value.trim();
         var p = document.getElementById('reg-password').value;
         var p2 = document.getElementById('reg-password2').value;
         
-        if (!u || !p) { document.getElementById('reg-error').textContent = 'Заполните поля'; return; }
-        if (p !== p2) { document.getElementById('reg-error').textContent = 'Пароли не совпадают'; return; }
+        if (!u || !p) { 
+            document.getElementById('reg-error').textContent = 'Заполните поля';
+            return;
+        }
+        if (p !== p2) { 
+            document.getElementById('reg-error').textContent = 'Пароли не совпадают';
+            return;
+        }
         
         document.getElementById('reg-error').textContent = '';
         document.getElementById('reg-success').textContent = 'Регистрация...';
@@ -67,7 +80,10 @@
             if (m.type === 'register_result') {
                 if (m.success) {
                     document.getElementById('reg-success').textContent = 'Успех! Теперь войдите.';
-                    setTimeout(function() { temp.close(); }, 1000);
+                    document.getElementById('reg-username').value = '';
+                    document.getElementById('reg-password').value = '';
+                    document.getElementById('reg-password2').value = '';
+                    temp.close();
                 } else {
                     document.getElementById('reg-error').textContent = m.error;
                     document.getElementById('reg-success').textContent = '';
@@ -85,38 +101,40 @@
         var u = document.getElementById('login-username').value.trim();
         var p = document.getElementById('login-password').value;
         
-        if (!u || !p) { document.getElementById('login-error').textContent = 'Введите имя и пароль'; return; }
+        if (!u || !p) { 
+            document.getElementById('login-error').textContent = 'Введите имя и пароль';
+            return;
+        }
         
         myName = u;
         var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
         
-        if (ws) {
-            ws.close();
-        }
+        // Создаём новое соединение
+        var newWs = new WebSocket(url);
         
-        ws = new WebSocket(url);
-        
-        ws.onopen = function() {
-            ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
+        newWs.onopen = function() {
+            console.log("WebSocket открыт, отправляем логин");
+            newWs.send(JSON.stringify({ type: 'login', from: u, password: p }));
         };
         
-        ws.onmessage = function(e) {
+        newWs.onmessage = function(e) {
             var m = JSON.parse(e.data);
             console.log("Ответ:", m);
             
             if (m.type === 'login_result') {
                 if (m.success) {
+                    ws = newWs;
                     document.getElementById('auth').style.display = 'none';
                     document.getElementById('chat').style.display = 'block';
                     document.getElementById('chat-title').innerHTML = myName;
                 } else {
                     document.getElementById('login-error').textContent = m.error || 'Ошибка входа';
-                    myName = '';
+                    newWs.close();
                 }
             }
         };
         
-        ws.onerror = function() { 
+        newWs.onerror = function() { 
             document.getElementById('login-error').textContent = 'Ошибка подключения к серверу';
         };
     }
@@ -128,17 +146,16 @@
             ws.send(JSON.stringify({ type: 'message', to: 'test', text: text }));
             document.getElementById('msg').value = '';
         } else {
-            console.log("WebSocket не открыт");
+            console.log("WebSocket не открыт, состояние:", ws ? ws.readyState : 'null');
         }
     }
     
     function logout() {
-        if (ws) {
+        if (ws && ws.readyState === WebSocket.OPEN) {
             ws.close();
         }
         location.reload();
     }
 </script>
-
 </body>
 </html>
