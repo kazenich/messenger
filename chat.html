@@ -171,7 +171,13 @@
 </div>
 
 <script>
-    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [], currentGroupCreator = '', currentChatName = '';
+    var ws = null;
+    var myName = '';
+    var currentChat = '';
+    var isGroup = false;
+    var savedContacts = [];
+    var currentGroupCreator = '';
+    var currentChatName = '';
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
     function showToast(msg, isErr) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#27ae60'; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); }
@@ -203,12 +209,25 @@
     function doLogin() {
         var u = document.getElementById('login-username').value.trim(), p = document.getElementById('login-password').value;
         if (!u || !p) { document.getElementById('login-error').textContent = 'Введите имя и пароль'; return; }
+        
         myName = u;
         var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+        
+        // Закрываем старый WebSocket, если есть
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close();
+        }
+        
         ws = new WebSocket(url);
-        ws.onopen = function() { ws.send(JSON.stringify({ type: 'login', from: u, password: p })); };
+        
+        ws.onopen = function() {
+            ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
+        };
+        
         ws.onmessage = function(e) {
             var m = JSON.parse(e.data);
+            console.log("Получено:", m);
+            
             if (m.type === 'login_result') {
                 if (m.success) {
                     document.getElementById('auth').style.display = 'none';
@@ -220,9 +239,18 @@
                     document.getElementById('login-error').textContent = m.error || 'Ошибка входа';
                     myName = '';
                 }
-            } else { handleChatMessage(m); }
+            } else {
+                handleChatMessage(m);
+            }
         };
-        ws.onerror = function() { document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу'; };
+        
+        ws.onerror = function() {
+            document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
+        };
+        
+        ws.onclose = function() {
+            console.log("WebSocket закрыт");
+        };
     }
 
     function handleChatMessage(m) {
@@ -311,11 +339,43 @@
     function addMemberToGroup() { var n = prompt('Имя пользователя для добавления:'); if (n && n.trim() && n.trim() !== myName) ws.send(JSON.stringify({ type: 'add_group_member', to: currentChat, text: n.trim() })); else if (n === myName) showToast('Нельзя добавить себя', true); }
     function removeMemberFromGroup() { var n = prompt('Имя пользователя для удаления:'); if (n && n.trim()) ws.send(JSON.stringify({ type: 'remove_group_member', to: currentChat, text: n.trim() })); }
 
-    function selectUser(n) { currentChat = n; isGroup = false; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>💬 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_dialog', to: n })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
-    function selectGroup(id, n) { currentChat = id; isGroup = true; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>👥 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_group', to: id })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
+    function selectUser(n) { 
+        currentChat = n; 
+        isGroup = false; 
+        currentChatName = n; 
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>💬 ' + n + '</span>'; 
+        document.getElementById('messages').innerHTML = ''; 
+        document.getElementById('input').style.display = 'flex'; 
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_dialog', to: n })); 
+        clearSearch(); 
+        if (window.innerWidth <= 768) toggleSidebar(); 
+    }
+    
+    function selectGroup(id, n) { 
+        currentChat = id; 
+        isGroup = true; 
+        currentChatName = n; 
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>👥 ' + n + '</span>'; 
+        document.getElementById('messages').innerHTML = ''; 
+        document.getElementById('input').style.display = 'flex'; 
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_group', to: id })); 
+        clearSearch(); 
+        if (window.innerWidth <= 768) toggleSidebar(); 
+    }
 
-    function showCreateGroup() { var n = prompt('Название группы:'); if (!n) return; var m = prompt('Участники (через запятую):'); ws.send(JSON.stringify({ type: 'create_group', groupName: n, members: myName + ',' + m })); }
-    function logout() { location.reload(); }
+    function showCreateGroup() { 
+        var n = prompt('Название группы:'); 
+        if (!n) return; 
+        var m = prompt('Участники (через запятую):'); 
+        ws.send(JSON.stringify({ type: 'create_group', groupName: n, members: myName + ',' + m })); 
+    }
+    
+    function logout() { 
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.close();
+        }
+        location.reload(); 
+    }
 
     document.getElementById('msg').addEventListener('keypress', e => { if (e.key === 'Enter') sendMessage(); });
 </script>
