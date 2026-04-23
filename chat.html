@@ -4,11 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Мессенджер</title>
-    <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#075e54">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Мессенджер">
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f0f0; height: 100vh; display: flex; }
@@ -180,9 +176,9 @@
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
     function showToast(msg, isErr) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#27ae60'; document.body.appendChild(t); setTimeout(() => t.remove(), 2000); }
     function openStickerPanel() { var p = document.getElementById('sticker-panel'); p.style.display = p.style.display === 'grid' ? 'none' : 'grid'; }
-    function sendSticker(s) { if (!currentChat) { showToast('Выберите чат', true); return; } ws.send(JSON.stringify({ type: 'message', to: currentChat, sticker: s, text: '' })); document.getElementById('sticker-panel').style.display = 'none'; }
-    function sendPhoto() { if (!currentChat) { showToast('Выберите чат', true); return; } var i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = e => { var f = e.target.files[0]; if (f) { var r = new FileReader(); r.onload = ev => ws.send(JSON.stringify({ type: 'message', to: currentChat, imageData: ev.target.result, text: '' })); r.readAsDataURL(f); } }; i.click(); }
-    function sendMessage() { var t = document.getElementById('msg').value.trim(); if (!t && !currentChat) return; if (!currentChat) { showToast('Выберите чат', true); return; } if (t) { ws.send(JSON.stringify({ type: 'message', to: currentChat, text: t, imageData: '', sticker: '' })); document.getElementById('msg').value = ''; } }
+    function sendSticker(s) { if (!currentChat) { showToast('Выберите чат', true); return; } if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'message', to: currentChat, sticker: s, text: '' })); document.getElementById('sticker-panel').style.display = 'none'; }
+    function sendPhoto() { if (!currentChat) { showToast('Выберите чат', true); return; } var i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = e => { var f = e.target.files[0]; if (f) { var r = new FileReader(); r.onload = ev => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'message', to: currentChat, imageData: ev.target.result, text: '' })); }; r.readAsDataURL(f); } }; i.click(); }
+    function sendMessage() { var t = document.getElementById('msg').value.trim(); if (!t && !currentChat) return; if (!currentChat) { showToast('Выберите чат', true); return; } if (t && ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify({ type: 'message', to: currentChat, text: t, imageData: '', sticker: '' })); document.getElementById('msg').value = ''; } }
 
     function showTab(t) {
         document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
@@ -199,7 +195,7 @@
         if (p.length < 4) { document.getElementById('reg-error').textContent = 'Пароль минимум 4 символа'; return; }
         document.getElementById('reg-error').textContent = ''; document.getElementById('reg-success').textContent = 'Регистрация...';
         var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws', t = new WebSocket(url);
-        t.onopen = () => t.send(JSON.stringify({ type: 'register', from: u, password: p }));
+        t.onopen = () => { if (t.readyState === WebSocket.OPEN) t.send(JSON.stringify({ type: 'register', from: u, password: p })); };
         t.onmessage = e => { var m = JSON.parse(e.data); if (m.type === 'register_result') { if (m.success) { document.getElementById('reg-success').textContent = 'Регистрация успешна!'; setTimeout(() => { showTab('login'); document.getElementById('login-username').value = u; t.close(); }, 1500); } else { document.getElementById('reg-error').textContent = m.error || 'Ошибка'; document.getElementById('reg-success').textContent = ''; } } };
         t.onerror = () => { document.getElementById('reg-error').textContent = 'Ошибка подключения'; document.getElementById('reg-success').textContent = ''; };
     }
@@ -210,9 +206,29 @@
         myName = u;
         var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
         ws = new WebSocket(url);
-        ws.onopen = () => ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
-        ws.onmessage = e => { var m = JSON.parse(e.data); if (m.type === 'login_result') { if (m.success) { document.getElementById('auth').style.display = 'none'; document.getElementById('sidebar').style.display = 'flex'; document.getElementById('chat').style.display = 'flex'; document.getElementById('my-name').textContent = myName; handleChatMessage(m); } else { document.getElementById('login-error').textContent = m.error || 'Ошибка входа'; myName = ''; } } else { handleChatMessage(m); } };
-        ws.onerror = () => document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
+        ws.onopen = function() {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
+            }
+        };
+        ws.onmessage = function(e) {
+            var m = JSON.parse(e.data);
+            if (m.type === 'login_result') {
+                if (m.success) {
+                    document.getElementById('auth').style.display = 'none';
+                    document.getElementById('sidebar').style.display = 'flex';
+                    document.getElementById('chat').style.display = 'flex';
+                    document.getElementById('my-name').textContent = myName;
+                    handleChatMessage(m);
+                } else {
+                    document.getElementById('login-error').textContent = m.error || 'Ошибка входа';
+                    myName = '';
+                }
+            } else {
+                handleChatMessage(m);
+            }
+        };
+        ws.onerror = function() { document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу'; };
     }
 
     function handleChatMessage(m) {
@@ -296,15 +312,15 @@
     function addContact() { var n = document.getElementById('new-contact-name').value.trim(); if (!n) { showToast('Введите имя', true); return; } if (n === myName) { showToast('Нельзя добавить себя', true); return; } addContactByName(n); }
     function addExistingContact(n) { addContactByName(n); }
     function deleteContact(n) { if (confirm('Удалить контакт ' + n + '?')) ws.send(JSON.stringify({ type: 'delete_contact', text: n })); }
-    function getAllUsers() { ws.send(JSON.stringify({ type: 'get_users' })); }
+    function getAllUsers() { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'get_users' })); }
     function clearSearch() { document.getElementById('search-input').value = ''; document.getElementById('search-results').style.display = 'none'; document.getElementById('search-results').innerHTML = ''; }
 
     function addMemberToGroup() { var n = prompt('Имя пользователя для добавления:'); if (n && n.trim() && n.trim() !== myName) ws.send(JSON.stringify({ type: 'add_group_member', to: currentChat, text: n.trim() })); else if (n === myName) showToast('Нельзя добавить себя', true); }
     function removeMemberFromGroup() { var n = prompt('Имя пользователя для удаления:'); if (n && n.trim()) ws.send(JSON.stringify({ type: 'remove_group_member', to: currentChat, text: n.trim() })); }
 
     var currentChatName = '';
-    function selectUser(n) { currentChat = n; isGroup = false; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>💬 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; ws.send(JSON.stringify({ type: 'select_dialog', to: n })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
-    function selectGroup(id, n) { currentChat = id; isGroup = true; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>👥 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; ws.send(JSON.stringify({ type: 'select_group', to: id })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
+    function selectUser(n) { currentChat = n; isGroup = false; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>💬 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_dialog', to: n })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
+    function selectGroup(id, n) { currentChat = id; isGroup = true; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span>👥 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_group', to: id })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
 
     function showCreateGroup() { var n = prompt('Название группы:'); if (!n) return; var m = prompt('Участники (через запятую):'); ws.send(JSON.stringify({ type: 'create_group', groupName: n, members: myName + ',' + m })); }
     function logout() { location.reload(); }
