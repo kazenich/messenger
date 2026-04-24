@@ -1,7 +1,8 @@
+cd /c/Users/kaz/Desktop/messenger
+cat > handlers.go << 'EOF'
 package main
 
 import (
-	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -212,3 +213,4 @@ func handleChat(client *Client) {
 		}
 	}
 }
+EOF

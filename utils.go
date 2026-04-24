@@ -1,6 +1,8 @@
+cat > utils.go << 'EOF'
 package main
 
 import (
+	"database/sql"
 	"sort"
 	"strings"
 	"sync"
@@ -50,3 +52,4 @@ func broadcastGroupListToAll() {
 		sendGroupList(c)
 	}
 }
+EOF
