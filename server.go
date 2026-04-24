@@ -546,4 +546,4 @@ func handleChat(client *Client) {
 			}
 		}
 	}
-}
+} 
