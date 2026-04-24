@@ -221,16 +221,40 @@
     }
 
     function doLogin() {
-        var u = document.getElementById('login-username').value.trim(), p = document.getElementById('login-password').value;
-        if (!u || !p) { document.getElementById('login-error').textContent = 'Введите имя и пароль'; return; }
-        myName = u;
-        var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
-        ws = new WebSocket(url);
-        ws.onopen = () => ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
-        ws.onmessage = e => { var m = JSON.parse(e.data); console.log("Ответ:", m); if (m.type === 'login_result') { if (m.success) { document.getElementById('auth').style.display = 'none'; document.getElementById('sidebar').style.display = 'flex'; document.getElementById('chat').style.display = 'flex'; document.getElementById('my-name').textContent = myName; handleChatMessage(m); } else { document.getElementById('login-error').textContent = m.error || 'Ошибка входа'; myName = ''; } } else { handleChatMessage(m); } };
-        ws.onerror = () => document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
-    }
-
+    var u = document.getElementById('login-username').value.trim();
+    var p = document.getElementById('login-password').value;
+    if (!u || !p) { document.getElementById('login-error').textContent = 'Введите имя и пароль'; return; }
+    myName = u;
+    var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+    ws = new WebSocket(url);
+    ws.onopen = function() {
+        console.log("WebSocket открыт, отправляем логин");
+        if (ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
+        }
+    };
+    ws.onmessage = function(e) {
+        var m = JSON.parse(e.data);
+        console.log("Ответ:", m);
+        if (m.type === 'login_result') {
+            if (m.success) {
+                document.getElementById('auth').style.display = 'none';
+                document.getElementById('sidebar').style.display = 'flex';
+                document.getElementById('chat').style.display = 'flex';
+                document.getElementById('my-name').textContent = myName;
+                handleChatMessage(m);
+            } else {
+                document.getElementById('login-error').textContent = m.error || 'Ошибка входа';
+                myName = '';
+            }
+        } else {
+            handleChatMessage(m);
+        }
+    };
+    ws.onerror = function() {
+        document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
+    };
+}
     function handleChatMessage(m) {
         if (m.type === 'online') updateOnlineUsers(m.text ? m.text.split(',') : []);
         else if (m.type === 'group_list') updateGroups(m.text);
