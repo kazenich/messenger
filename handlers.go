@@ -1,5 +1,3 @@
-cd /c/Users/kaz/Desktop/messenger
-cat > handlers.go << 'EOF'
 package main
 
 import (
@@ -213,4 +211,3 @@ func handleChat(client *Client) {
 		}
 	}
 }
-EOF
