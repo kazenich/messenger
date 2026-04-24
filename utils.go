@@ -1,4 +1,3 @@
-cat > utils.go << 'EOF'
 package main
 
 import (
@@ -52,4 +51,3 @@ func broadcastGroupListToAll() {
 		sendGroupList(c)
 	}
 }
-EOF
