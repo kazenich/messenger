@@ -58,6 +58,30 @@ func initDB() {
 		password_hash TEXT
 	)`)
 
+	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		from_user TEXT,
+		to_user TEXT,
+		text TEXT,
+		image_data TEXT,
+		sticker TEXT,
+		time TEXT,
+		is_group INTEGER DEFAULT 0,
+		group_id TEXT
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS groups (
+		id TEXT PRIMARY KEY,
+		name TEXT,
+		creator TEXT
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS group_members (
+		group_id TEXT,
+		user_name TEXT,
+		PRIMARY KEY (group_id, user_name)
+	)`)
+
 	db.Exec(`CREATE TABLE IF NOT EXISTS contacts (
 		user_name TEXT,
 		contact_name TEXT,
@@ -172,14 +196,14 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var currentUser string
 	var client *Client
-	var isLoggedIn bool
 
 	for {
 		var msg Message
 		err := conn.ReadJSON(&msg)
 		if err != nil {
-			if isLoggedIn {
+			if currentUser != "" {
 				clientsMu.Lock()
 				delete(clients, client)
 				clientsMu.Unlock()
@@ -208,11 +232,11 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "login":
 			if loginUser(msg.From, msg.Password) {
+				currentUser = msg.From
 				client = &Client{Conn: conn, Name: msg.From}
 				clientsMu.Lock()
 				clients[client] = true
 				clientsMu.Unlock()
-				isLoggedIn = true
 
 				contacts := getContacts(msg.From)
 				conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
