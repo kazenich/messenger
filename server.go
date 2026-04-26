@@ -46,6 +46,17 @@ type Message struct {
 	Sticker   string `json:"sticker"`
 }
 
+// Экранирование опасных символов для защиты от XSS
+func sanitizeText(text string) string {
+	// Заменяем опасные символы на HTML-сущности
+	text = strings.ReplaceAll(text, "&", "&amp;")
+	text = strings.ReplaceAll(text, "<", "&lt;")
+	text = strings.ReplaceAll(text, ">", "&gt;")
+	text = strings.ReplaceAll(text, `"`, "&quot;")
+	text = strings.ReplaceAll(text, "'", "&#39;")
+	return text
+}
+
 func initDB() {
 	var err error
 	db, err = sql.Open("sqlite", "./chat.db")
@@ -136,6 +147,7 @@ func loginUser(username, password string) bool {
 }
 
 func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
+	// Сохраняем ОРИГИНАЛЬНЫЙ текст (не экранированный) в БД
 	_, err := db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroup, groupID)
@@ -153,6 +165,8 @@ func getPrivateHistory(u1, u2 string) []Message {
 	for rows.Next() {
 		var m Message
 		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
+		// Экранируем текст при отдаче
+		m.Text = sanitizeText(m.Text)
 		m.Type = "history"
 		msgs = append(msgs, m)
 	}
@@ -167,6 +181,7 @@ func getGroupHistory(groupID string) []Message {
 	for rows.Next() {
 		var m Message
 		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
+		m.Text = sanitizeText(m.Text)
 		m.Type = "history"
 		msgs = append(msgs, m)
 	}
@@ -410,6 +425,9 @@ func handleChat(client *Client) {
 		msg.From = client.Name
 		msg.Time = time.Now().Format("15:04")
 
+		// Экранируем текст сообщения перед отправкой
+		msg.Text = sanitizeText(msg.Text)
+
 		switch msg.Type {
 		case "select_dialog":
 			client.CurrentDialog = msg.To
@@ -489,12 +507,17 @@ func handleChat(client *Client) {
 			client.Conn.WriteJSON(Message{Type: "delete_contact_result", Success: true, Text: "Контакт удалён"})
 
 		case "message":
-			saveMessage(client.Name, msg.To, msg.Text, msg.ImageData, msg.Sticker, client.IsGroup, client.CurrentDialog)
+			// Сохраняем ОРИГИНАЛЬНЫЙ текст (без экранирования) в БД
+			originalText := msg.Text
+			saveMessage(client.Name, msg.To, originalText, msg.ImageData, msg.Sticker, client.IsGroup, client.CurrentDialog)
+
+			// Отправляем ЭКРАНИРОВАННЫЙ текст клиентам
+			safeText := sanitizeText(originalText)
 
 			// Отправляем отправителю
 			client.Conn.WriteJSON(Message{
 				From:      client.Name,
-				Text:      msg.Text,
+				Text:      safeText,
 				ImageData: msg.ImageData,
 				Sticker:   msg.Sticker,
 				Time:      msg.Time,
@@ -509,7 +532,7 @@ func handleChat(client *Client) {
 					if c.Name == msg.To {
 						c.Conn.WriteJSON(Message{
 							From:      client.Name,
-							Text:      msg.Text,
+							Text:      safeText,
 							ImageData: msg.ImageData,
 							Sticker:   msg.Sticker,
 							Time:      msg.Time,
@@ -520,12 +543,9 @@ func handleChat(client *Client) {
 					}
 				}
 				clientsMu.RUnlock()
-
-				// Сохраняем контакты
 				addContact(client.Name, msg.To)
 				addContact(msg.To, client.Name)
 			} else {
-				// Отправляем всем участникам группы
 				members := getGroupMembers(client.CurrentDialog)
 				clientsMu.RLock()
 				for c := range clients {
@@ -533,7 +553,7 @@ func handleChat(client *Client) {
 						if c.Name == m && c.CurrentDialog == client.CurrentDialog && c.IsGroup {
 							c.Conn.WriteJSON(Message{
 								From:      client.Name,
-								Text:      msg.Text,
+								Text:      safeText,
 								ImageData: msg.ImageData,
 								Sticker:   msg.Sticker,
 								Time:      msg.Time,
