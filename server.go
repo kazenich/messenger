@@ -57,30 +57,6 @@ func initDB() {
 		password_hash TEXT
 	)`)
 
-	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		from_user TEXT,
-		to_user TEXT,
-		text TEXT,
-		image_data TEXT,
-		sticker TEXT,
-		time TEXT,
-		is_group INTEGER DEFAULT 0,
-		group_id TEXT
-	)`)
-
-	db.Exec(`CREATE TABLE IF NOT EXISTS groups (
-		id TEXT PRIMARY KEY,
-		name TEXT,
-		creator TEXT
-	)`)
-
-	db.Exec(`CREATE TABLE IF NOT EXISTS group_members (
-		group_id TEXT,
-		user_name TEXT,
-		PRIMARY KEY (group_id, user_name)
-	)`)
-
 	db.Exec(`CREATE TABLE IF NOT EXISTS contacts (
 		user_name TEXT,
 		contact_name TEXT,
@@ -158,6 +134,18 @@ func getContacts(user string) []string {
 
 func getAllUsers(current string) []string {
 	rows, _ := db.Query("SELECT username FROM users WHERE username != ?", current)
+	defer rows.Close()
+	var users []string
+	for rows.Next() {
+		var u string
+		rows.Scan(&u)
+		users = append(users, u)
+	}
+	return users
+}
+
+func searchUsers(query, current string) []string {
+	rows, _ := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", current)
 	defer rows.Close()
 	var users []string
 	for rows.Next() {
@@ -247,6 +235,24 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				broadcastOnlineList()
 			} else {
 				conn.WriteJSON(Message{Type: "login_result", Success: false, Error: "Неверный логин или пароль"})
+			}
+
+		case "get_users":
+			users := getAllUsers("")
+			conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(users, ",")})
+
+		case "search_users":
+			users := searchUsers(msg.Text, "")
+			conn.WriteJSON(Message{Type: "search_results", Text: strings.Join(users, ",")})
+
+		case "add_contact":
+			err := addContact(msg.From, msg.Text)
+			if err != nil {
+				conn.WriteJSON(Message{Type: "add_contact_result", Success: false, Error: err.Error()})
+			} else {
+				contacts := getContacts(msg.From)
+				conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+				conn.WriteJSON(Message{Type: "add_contact_result", Success: true, Text: "Контакт добавлен"})
 			}
 		}
 	}
