@@ -27,7 +27,7 @@
         }
         #auth-box h2 { margin-top: 0; margin-bottom: 20px; color: #075e54; text-align: center; font-size: 28px; }
         .tabs { display: flex; margin-bottom: 25px; border-bottom: 2px solid #e0e0e0; }
-        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: #666; font-weight: 500; transition: all 0.3s; }
+        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: #666; font-weight: 500; }
         .tab.active { color: #075e54; border-bottom: 2px solid #075e54; margin-bottom: -2px; }
         .auth-form { display: none; }
         .auth-form.active { display: block; }
@@ -53,53 +53,52 @@
             font-size: 16px;
             font-weight: 600;
             margin-top: 15px;
-            transition: background 0.3s;
         }
         .btn:hover { background: #054a42; }
         .error { color: #e74c3c; font-size: 13px; margin-top: 10px; text-align: center; }
         .success { color: #27ae60; font-size: 13px; margin-top: 10px; text-align: center; }
 
         #sidebar { width: 320px; background: white; border-right: 1px solid #ccc; overflow-y: auto; display: none; flex-direction: column; }
-        #chat { flex: 1; display: flex; flex-direction: column; display: none; background: #e5ddd5; }
+        #chat { flex: 1; display: none; flex-direction: column; background: #e5ddd5; }
         #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
-        .message { margin: 8px 0; padding: 10px 14px; border-radius: 18px; max-width: 70%; word-wrap: break-word; position: relative; }
+        .message { margin: 8px 0; padding: 10px 14px; border-radius: 18px; max-width: 70%; word-wrap: break-word; }
         .message img { max-width: 200px; max-height: 200px; border-radius: 10px; cursor: pointer; margin-top: 5px; }
-        .message .sticker { font-size: 48px; cursor: pointer; display: inline-block; }
-        .message .message-name { font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #075e54; }
+        .message .sticker { font-size: 48px; }
         .in { background: white; align-self: flex-start; border-bottom-left-radius: 4px; }
         .out { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 4px; }
+        .message-name { font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #075e54; }
         .message-time { font-size: 10px; color: #999; margin-top: 4px; text-align: right; }
         #input { padding: 12px; background: #f0f0f0; display: flex; gap: 8px; align-items: center; border-top: 1px solid #ddd; }
-        #input input { flex: 1; padding: 12px; border: 1px solid #ddd; border-radius: 25px; font-size: 15px; background: white; }
-        .contact { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s; }
+        #input input { flex: 1; padding: 12px; border: none; border-radius: 25px; background: white; }
+        .contact { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
         .contact:hover { background: #f5f5f5; }
         .contact-name { flex: 1; font-weight: 500; }
         .contact-actions { display: none; gap: 8px; }
         .contact:hover .contact-actions { display: flex; }
         .contact-actions button { padding: 4px 8px; font-size: 11px; background: #e74c3c; border: none; border-radius: 8px; cursor: pointer; color: white; }
         .contact-actions button.add-btn { background: #27ae60; }
-        button { padding: 8px 16px; background: #075e54; color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: 500; transition: background 0.2s; }
+        button { padding: 8px 16px; background: #075e54; color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: 500; }
         button:hover { background: #054a42; }
         .contact-section { margin-top: 5px; }
-        .section-title { padding: 10px 16px; background: #f0f0f0; font-weight: 600; font-size: 12px; color: #666; letter-spacing: 0.5px; }
+        .section-title { padding: 10px 16px; background: #f0f0f0; font-weight: 600; font-size: 12px; color: #666; }
         .search-box { padding: 12px; background: white; border-bottom: 1px solid #e0e0e0; }
         .search-box input { width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 25px; box-sizing: border-box; font-size: 14px; background: #f5f5f5; }
         .search-results { max-height: 250px; overflow-y: auto; background: white; border-bottom: 1px solid #ddd; }
-        .search-result-item { padding: 12px 16px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .search-result-item { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
         .search-result-item:hover { background: #f5f5f5; }
         .search-result-item button { padding: 6px 12px; font-size: 12px; background: #27ae60; border: none; border-radius: 8px; cursor: pointer; color: white; }
         .no-results { padding: 20px; text-align: center; color: #999; font-size: 13px; }
-        .top-bar { padding: 12px 16px; background: #075e54; display: flex; justify-content: space-between; align-items: center; color: white; }
+        .top-bar { padding: 12px 16px; background: #075e54; color: white; display: flex; justify-content: space-between; align-items: center; }
         .top-bar button { background: rgba(255,255,255,0.2); padding: 6px 12px; font-size: 13px; }
         .add-contact-panel { padding: 12px; background: white; border-bottom: 1px solid #ddd; display: flex; gap: 8px; }
         .add-contact-panel input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 25px; font-size: 14px; }
         .add-contact-panel button { padding: 10px 16px; background: #27ae60; font-size: 13px; border: none; border-radius: 25px; cursor: pointer; color: white; }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 30px; z-index: 2000; animation: fadeOut 3s forwards; font-size: 14px; white-space: nowrap; }
+        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 30px; z-index: 2000; animation: fadeOut 3s forwards; font-size: 14px; }
         @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
         .input-buttons { display: flex; gap: 8px; }
         .input-buttons button { font-size: 18px; padding: 8px 14px; background: #075e54; }
         .sticker-panel { position: absolute; bottom: 80px; left: 10px; background: white; border: 1px solid #ccc; border-radius: 16px; padding: 12px; display: none; grid-template-columns: repeat(6, 1fr); gap: 8px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .sticker-panel span { font-size: 36px; cursor: pointer; padding: 8px; text-align: center; border-radius: 12px; transition: background 0.2s; }
+        .sticker-panel span { font-size: 36px; cursor: pointer; padding: 8px; text-align: center; border-radius: 12px; }
         .sticker-panel span:hover { background: #f0f0f0; }
         #header { padding: 16px 20px; background: #075e54; color: white; font-weight: 600; font-size: 18px; display: flex; align-items: center; gap: 10px; }
         .group-buttons { margin-left: auto; display: flex; gap: 5px; }
@@ -110,7 +109,6 @@
             .message { max-width: 85%; }
             .toast { white-space: normal; text-align: center; max-width: 80%; }
             .menu-btn { display: block; background: none; font-size: 24px; padding: 0; margin-right: 10px; color: white; width: 40px; }
-            .group-buttons button { padding: 4px 8px; font-size: 11px; }
         }
         .menu-btn { display: none; background: none; border: none; font-size: 24px; cursor: pointer; }
     </style>
@@ -131,7 +129,7 @@
             <div id="login-error" class="error"></div>
         </div>
         <div id="register-form" class="auth-form">
-            <input type="text" id="reg-username" placeholder="Придумайте имя">
+            <input type="text" id="reg-username" placeholder="Придумайте имя (буквы, цифры, пробелы, _)">
             <input type="password" id="reg-password" placeholder="Придумайте пароль">
             <input type="password" id="reg-password2" placeholder="Повторите пароль">
             <button class="btn" onclick="doRegister()">Зарегистрироваться</button>
@@ -181,409 +179,243 @@
 </div>
 
 <div id="sticker-panel" class="sticker-panel">
-    <span onclick="sendSticker('😀')">😀</span>
-    <span onclick="sendSticker('😂')">😂</span>
-    <span onclick="sendSticker('🥰')">🥰</span>
-    <span onclick="sendSticker('😍')">😍</span>
-    <span onclick="sendSticker('🎉')">🎉</span>
-    <span onclick="sendSticker('👍')">👍</span>
-    <span onclick="sendSticker('🔥')">🔥</span>
-    <span onclick="sendSticker('💯')">💯</span>
-    <span onclick="sendSticker('❤️')">❤️</span>
-    <span onclick="sendSticker('😢')">😢</span>
-    <span onclick="sendSticker('😱')">😱</span>
-    <span onclick="sendSticker('🤔')">🤔</span>
-    <span onclick="sendSticker('😎')">😎</span>
-    <span onclick="sendSticker('🥳')">🥳</span>
-    <span onclick="sendSticker('💔')">💔</span>
-    <span onclick="sendSticker('✨')">✨</span>
-    <span onclick="sendSticker('⭐')">⭐</span>
-    <span onclick="sendSticker('🍕')">🍕</span>
+    <span onclick="sendSticker('😀')">😀</span> <span onclick="sendSticker('😂')">😂</span>
+    <span onclick="sendSticker('🥰')">🥰</span> <span onclick="sendSticker('😍')">😍</span>
+    <span onclick="sendSticker('🎉')">🎉</span> <span onclick="sendSticker('👍')">👍</span>
+    <span onclick="sendSticker('🔥')">🔥</span> <span onclick="sendSticker('💯')">💯</span>
+    <span onclick="sendSticker('❤️')">❤️</span> <span onclick="sendSticker('😢')">😢</span>
+    <span onclick="sendSticker('😱')">😱</span> <span onclick="sendSticker('🤔')">🤔</span>
+    <span onclick="sendSticker('😎')">😎</span> <span onclick="sendSticker('🥳')">🥳</span>
+    <span onclick="sendSticker('💔')">💔</span> <span onclick="sendSticker('✨')">✨</span>
+    <span onclick="sendSticker('⭐')">⭐</span> <span onclick="sendSticker('🍕')">🍕</span>
 </div>
 
 <script>
-    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [];
+    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [], currentGroupCreator = '', currentChatName = '';
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-    
-    function showToast(message, isError) {
-        var toast = document.createElement('div');
-        toast.className = 'toast';
-        toast.style.background = isError ? '#e74c3c' : '#27ae60';
-        toast.textContent = message;
-        document.body.appendChild(toast);
-        setTimeout(function() { if(toast && toast.remove) toast.remove(); }, 3000);
+    function showToast(msg, isErr) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#27ae60'; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); }
+    function openStickerPanel() { var p = document.getElementById('sticker-panel'); p.style.display = p.style.display === 'grid' ? 'none' : 'grid'; }
+    function sendSticker(s) { if (!currentChat) { showToast('Выберите чат', true); return; } if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'message', to: currentChat, sticker: s, text: '' })); document.getElementById('sticker-panel').style.display = 'none'; }
+    function sendPhoto() { if (!currentChat) { showToast('Выберите чат', true); return; } var i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = e => { var f = e.target.files[0]; if (f) { var r = new FileReader(); r.onload = ev => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'message', to: currentChat, imageData: ev.target.result, text: '' })); }; r.readAsDataURL(f); } }; i.click(); }
+    function send() { var t = document.getElementById('msg').value.trim(); if (!t && !currentChat) return; if (!currentChat) { showToast('Выберите чат', true); return; } if (t && ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify({ type: 'message', to: currentChat, text: t, imageData: '', sticker: '' })); document.getElementById('msg').value = ''; } }
+
+    function showTab(t) {
+        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+        document.querySelectorAll('.auth-form').forEach(el => el.classList.remove('active'));
+        if (t === 'login') { document.querySelector('.tab:first-child').classList.add('active'); document.getElementById('login-form').classList.add('active'); }
+        else { document.querySelector('.tab:last-child').classList.add('active'); document.getElementById('register-form').classList.add('active'); }
+        document.getElementById('login-error').textContent = ''; document.getElementById('reg-error').textContent = ''; document.getElementById('reg-success').textContent = '';
     }
-    
-    function openStickerPanel() {
-        var panel = document.getElementById('sticker-panel');
-        panel.style.display = panel.style.display === 'grid' ? 'none' : 'grid';
-    }
-    
-    function sendSticker(sticker) {
-        if (!currentChat) { showToast('Выберите чат', true); return; }
-        ws.send(JSON.stringify({ type: 'message', to: currentChat, sticker: sticker, text: '' }));
-        document.getElementById('sticker-panel').style.display = 'none';
-    }
-    
-    function sendPhoto() {
-        if (!currentChat) { showToast('Выберите чат', true); return; }
-        var input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'image/*';
-        input.onchange = function(e) {
-            var file = e.target.files[0];
-            if (file) {
-                var reader = new FileReader();
-                reader.onload = function(evt) {
-                    ws.send(JSON.stringify({ type: 'message', to: currentChat, imageData: evt.target.result, text: '' }));
-                };
-                reader.readAsDataURL(file);
-            }
-        };
-        input.click();
-    }
-    
-    function send() {
-        var text = document.getElementById('msg').value.trim();
-        if (!text && !currentChat) return;
-        if (!currentChat) { showToast('Выберите чат', true); return; }
-        if (text) {
-            ws.send(JSON.stringify({ type: 'message', to: currentChat, text: text, imageData: '', sticker: '' }));
-            document.getElementById('msg').value = '';
-        }
-    }
-    
-    function showTab(tab) {
-        var tabs = document.querySelectorAll('.tab');
-        tabs.forEach(function(t) { t.classList.remove('active'); });
-        var forms = document.querySelectorAll('.auth-form');
-        forms.forEach(function(f) { f.classList.remove('active'); });
-        if (tab === 'login') {
-            if (tabs[0]) tabs[0].classList.add('active');
-            document.getElementById('login-form').classList.add('active');
-        } else {
-            if (tabs[1]) tabs[1].classList.add('active');
-            document.getElementById('register-form').classList.add('active');
-        }
-        document.getElementById('login-error').textContent = '';
-        document.getElementById('reg-error').textContent = '';
-        document.getElementById('reg-success').textContent = '';
-    }
-    
+
     function doRegister() {
-        var username = document.getElementById('reg-username').value.trim();
-        var password = document.getElementById('reg-password').value;
-        var password2 = document.getElementById('reg-password2').value;
-        if (!username || !password) {
+        var u = document.getElementById('reg-username').value.trim();
+        var p = document.getElementById('reg-password').value;
+        var p2 = document.getElementById('reg-password2').value;
+        
+        if (u.length < 3 || u.length > 20) {
+            document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
+            return;
+        }
+        var validRegex = /^[a-zA-Z0-9_а-яА-ЯёЁ\s]+$/;
+        if (!validRegex.test(u)) {
+            document.getElementById('reg-error').textContent = 'Имя может содержать только буквы, цифры, пробелы и подчёркивание';
+            return;
+        }
+        if (!u || !p) {
             document.getElementById('reg-error').textContent = 'Заполните все поля';
             return;
         }
-        if (password !== password2) {
+        if (p !== p2) {
             document.getElementById('reg-error').textContent = 'Пароли не совпадают';
             return;
         }
-        if (password.length < 4) {
+        if (p.length < 4) {
             document.getElementById('reg-error').textContent = 'Пароль минимум 4 символа';
             return;
         }
+        
         document.getElementById('reg-error').textContent = '';
         document.getElementById('reg-success').textContent = 'Регистрация...';
-        var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        var tempWs = new WebSocket(protocol + "//" + window.location.host + "/ws");
-        tempWs.onopen = function() {
-            tempWs.send(JSON.stringify({ type: 'register', from: username, password: password }));
+        
+        var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+        var temp = new WebSocket(url);
+        
+        temp.onopen = function() {
+            temp.send(JSON.stringify({ type: 'register', from: u, password: p }));
         };
-        tempWs.onmessage = function(e) {
-            var msg = JSON.parse(e.data);
-            if (msg.type === 'register_result') {
-                if (msg.success) {
-                    document.getElementById('reg-success').textContent = 'Регистрация успешна! Переключаюсь на вход...';
+        
+        temp.onmessage = function(e) {
+            var m = JSON.parse(e.data);
+            if (m.type === 'register_result') {
+                if (m.success) {
+                    document.getElementById('reg-success').textContent = 'Регистрация успешна! Теперь войдите.';
                     setTimeout(function() {
                         showTab('login');
-                        document.getElementById('login-username').value = username;
-                        tempWs.close();
+                        document.getElementById('login-username').value = u;
+                        temp.close();
                     }, 1500);
                 } else {
-                    document.getElementById('reg-error').textContent = msg.error || 'Ошибка регистрации';
+                    document.getElementById('reg-error').textContent = m.error;
                     document.getElementById('reg-success').textContent = '';
                 }
             }
         };
-        tempWs.onerror = function() {
-            document.getElementById('reg-error').textContent = 'Ошибка подключения к серверу';
+        
+        temp.onerror = function() {
+            document.getElementById('reg-error').textContent = 'Ошибка подключения';
             document.getElementById('reg-success').textContent = '';
         };
     }
-    
+
     function doLogin() {
-        var username = document.getElementById('login-username').value.trim();
-        var password = document.getElementById('login-password').value;
-        if (!username || !password) {
-            document.getElementById('login-error').textContent = 'Введите имя и пароль';
-            return;
-        }
-        myName = username;
-        var protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
-        var wsUrl = protocol + "//" + window.location.host + "/ws";
-        ws = new WebSocket(wsUrl);
+        var u = document.getElementById('login-username').value.trim();
+        var p = document.getElementById('login-password').value;
+        if (!u || !p) { document.getElementById('login-error').textContent = 'Введите имя и пароль'; return; }
+        myName = u;
+        var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+        ws = new WebSocket(url);
         ws.onopen = function() {
-            ws.send(JSON.stringify({ type: 'login', from: username, password: password }));
+            ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
         };
         ws.onmessage = function(e) {
-            var msg = JSON.parse(e.data);
-            console.log("Получено:", msg);
-            if (msg.type === 'login_result') {
-                if (msg.success) {
+            var m = JSON.parse(e.data);
+            console.log("Ответ:", m);
+            if (m.type === 'login_result') {
+                if (m.success) {
                     document.getElementById('auth').style.display = 'none';
                     document.getElementById('sidebar').style.display = 'flex';
                     document.getElementById('chat').style.display = 'flex';
                     document.getElementById('my-name').textContent = myName;
-                    handleChatMessage(msg);
+                    handleChatMessage(m);
                 } else {
-                    document.getElementById('login-error').textContent = msg.error || 'Ошибка входа';
+                    document.getElementById('login-error').textContent = m.error || 'Ошибка входа';
                     myName = '';
                 }
             } else {
-                handleChatMessage(msg);
+                handleChatMessage(m);
             }
         };
         ws.onerror = function() {
             document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
         };
     }
-    
-    function handleChatMessage(msg) {
-        if (msg.type === 'online') {
-            updateOnlineUsers(msg.text ? msg.text.split(',') : []);
-        } else if (msg.type === 'group_list') {
-            updateGroups(msg.text);
-        } else if (msg.type === 'contact_list') {
-            savedContacts = msg.text ? msg.text.split(',') : [];
-            renderContacts();
-        } else if (msg.type === 'search_results') {
-            showSearchResults(msg.text ? msg.text.split(',') : []);
-        } else if (msg.type === 'user_list') {
-            var users = msg.text ? msg.text.split(',') : [];
-            alert("Зарегистрированные пользователи:\n" + (users.length ? users.join("\n") : "Нет других пользователей"));
-        } else if (msg.type === 'add_contact_result') {
-            if (msg.success) {
-                showToast(msg.text || 'Контакт добавлен');
-                document.getElementById('new-contact-name').value = '';
-            } else {
-                showToast(msg.error || 'Ошибка добавления контакта', true);
-            }
-        } else if (msg.type === 'delete_contact_result') {
-            showToast(msg.text || 'Контакт удалён');
-        } else if (msg.type === 'history') {
-            showMessage(msg.from, msg.text, msg.imageData, msg.sticker, false);
-        } else if (msg.type === 'message') {
-            showMessage(msg.from, msg.text, msg.imageData, msg.sticker, msg.from === myName);
-        } else if (msg.type === 'member_list') {
-            var members = msg.text ? msg.text.split(',') : [];
+
+    function handleChatMessage(m) {
+        if (m.type === 'online') updateOnlineUsers(m.text ? m.text.split(',') : []);
+        else if (m.type === 'group_list') updateGroups(m.text);
+        else if (m.type === 'contact_list') { savedContacts = m.text ? m.text.split(',') : []; renderContacts(); }
+        else if (m.type === 'search_results') showSearchResults(m.text ? m.text.split(',') : []);
+        else if (m.type === 'user_list') { /* скрыто */ }
+        else if (m.type === 'add_contact_result') { if (m.success) { showToast(m.text); document.getElementById('new-contact-name').value = ''; } else showToast(m.error, true); }
+        else if (m.type === 'delete_contact_result') showToast(m.text);
+        else if (m.type === 'group_action_result') { if (m.success) showToast(m.text); else showToast(m.error, true); }
+        else if (m.type === 'message_error') { showToast(m.error || 'Ошибка отправки', true); }
+        else if (m.type === 'history') showMessage(m.from, m.text, m.imageData, m.sticker, false);
+        else if (m.type === 'message') showMessage(m.from, m.text, m.imageData, m.sticker, m.from === myName);
+        else if (m.type === 'member_list') {
+            currentGroupCreator = m.GroupName || '';
+            var members = m.text ? m.text.split(',') : [];
             var btn = '';
-            if (msg.from === myName) {
-                btn = '<div class="group-buttons"><button onclick="addMemberToGroup()" style="background:rgba(255,255,255,0.2);">➕</button><button onclick="removeMemberFromGroup()" style="background:rgba(255,255,255,0.2);">➖</button></div>';
-            }
+            if (currentGroupCreator === myName) btn = '<div class="group-buttons"><button onclick="addMemberToGroup()">➕</button><button onclick="removeMemberFromGroup()">➖</button></div>';
             document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + currentChatName + ' (' + members.length + ')</span>' + btn;
         }
     }
-    
-    function showMessage(from, text, imageData, sticker, isMe) {
-        var messagesDiv = document.getElementById('messages');
-        if (!messagesDiv) return;
-        var div = document.createElement('div');
-        div.className = 'message ' + (isMe ? 'out' : 'in');
-        var content = '';
-        if (!isMe) content += '<div class="message-name">' + from + '</div>';
-        if (sticker) content += '<span class="sticker">' + sticker + '</span>';
-        if (imageData) content += '<img src="' + imageData + '" onclick="window.open(this.src)">';
-        if (text) content += text;
-        content += '<div class="message-time">' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + '</div>';
-        div.innerHTML = content;
-        messagesDiv.appendChild(div);
-        messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+    function showMessage(f, t, img, st, me) {
+        var div = document.getElementById('messages'), d = document.createElement('div');
+        d.className = 'message ' + (me ? 'out' : 'in');
+        var c = '';
+        if (!me) c += '<div class="message-name">' + f + '</div>';
+        if (st) c += '<span class="sticker">' + st + '</span>';
+        if (img) c += '<img src="' + img + '" onclick="window.open(this.src)">';
+        if (t) c += t;
+        c += '<div class="message-time">' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + '</div>';
+        d.innerHTML = c;
+        div.appendChild(d);
+        div.scrollTop = div.scrollHeight;
     }
-    
+
     function renderContacts() {
-        var contactsDiv = document.getElementById('contacts');
-        if (!contactsDiv) return;
-        var html = '<div class="contact-section"><div class="section-title">💬 СОХРАНЁННЫЕ КОНТАКТЫ</div>';
-        savedContacts.forEach(function(contact) {
-            if (contact !== myName) {
-                html += '<div class="contact" onclick="selectUser(\'' + contact + '\')">' +
-                    '<span class="contact-name">📱 ' + contact + '</span>' +
-                    '<div class="contact-actions">' +
-                    '<button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + contact + '\')">➕</button>' +
-                    '<button onclick="event.stopPropagation(); deleteContact(\'' + contact + '\')">🗑️</button>' +
-                    '</div></div>';
-            }
-        });
-        if (savedContacts.length === 0 || (savedContacts.length === 1 && savedContacts[0] === myName)) {
-            html += '<div style="padding: 20px; text-align: center; color: #999;">Нет сохранённых контактов</div>';
-        }
-        html += '</div><div class="contact-section"><div class="section-title">🟢 ОНЛАЙН</div><div id="online-users"></div></div>';
-        contactsDiv.innerHTML = html;
+        var div = document.getElementById('contacts');
+        if (!div) return;
+        var h = '<div class="contact-section"><div class="section-title">💬 СОХРАНЁННЫЕ</div>';
+        savedContacts.forEach(c => { if (c !== myName) h += '<div class="contact" onclick="selectUser(\'' + c + '\')"><span class="contact-name">📱 ' + c + '</span><div class="contact-actions"><button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + c + '\')">➕</button><button onclick="event.stopPropagation(); deleteContact(\'' + c + '\')">🗑️</button></div></div>'; });
+        if (!savedContacts.length) h += '<div style="padding: 20px; text-align: center; color: #999;">Нет контактов</div>';
+        h += '</div><div class="contact-section"><div class="section-title">🟢 ОНЛАЙН</div><div id="online-users"></div></div>';
+        div.innerHTML = h;
     }
-    
+
     function updateOnlineUsers(users) {
         var onlineDiv = document.getElementById('online-users');
         if (!onlineDiv) return;
-        var html = '';
-        users.forEach(function(user) {
-            if (user !== myName) {
-                var isSaved = savedContacts.includes(user);
-                var icon = isSaved ? '📱' : '🟢';
-                html += '<div class="contact" onclick="selectUser(\'' + user + '\')">' +
-                    '<span class="contact-name">' + icon + ' ' + user + '</span>' +
-                    '<div class="contact-actions">' +
-                    '<button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + user + '\')">➕</button>' +
-                    '</div></div>';
-            }
-        });
-        if (html === '') html = '<div style="padding: 20px; text-align: center; color: #999;">Никого нет в сети</div>';
-        onlineDiv.innerHTML = html;
+        var h = '';
+        users.forEach(u => { if (u !== myName) h += '<div class="contact" onclick="selectUser(\'' + u + '\')"><span class="contact-name">🟢 ' + u + '</span><div class="contact-actions"><button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + u + '\')">➕</button></div></div>'; });
+        if (!h) h = '<div style="padding: 20px; text-align: center; color: #999;">Никого нет в сети</div>';
+        onlineDiv.innerHTML = h;
     }
-    
+
     function updateGroups(groups) {
         if (!groups || groups === '') return;
-        var html = '<div class="contact-section"><div class="section-title">👥 ГРУППЫ</div>';
-        groups.split(',').forEach(function(g) {
-            var parts = g.split('|');
-            if (parts.length === 2) {
-                html += '<div class="contact" onclick="selectGroup(\'' + parts[0] + '\',\'' + parts[1] + '\')">' +
-                    '<span class="contact-name">👥 ' + parts[1] + '</span></div>';
-            }
-        });
-        html += '</div>';
-        var contactsDiv = document.getElementById('contacts');
-        if (contactsDiv) contactsDiv.innerHTML = html + contactsDiv.innerHTML;
+        var h = '<div class="contact-section"><div class="section-title">👥 ГРУППЫ</div>';
+        groups.split(',').forEach(g => { var p = g.split('|'); if (p.length === 2) h += '<div class="contact" onclick="selectGroup(\'' + p[0] + '\',\'' + p[1] + '\')"><span class="contact-name">👥 ' + p[1] + '</span></div>'; });
+        var div = document.getElementById('contacts');
+        if (div) div.innerHTML = h + div.innerHTML;
     }
-    
+
     function searchUsers() {
-        var query = document.getElementById('search-input').value.trim();
-        var resultsDiv = document.getElementById('search-results');
-        if (query === '') {
-            resultsDiv.style.display = 'none';
-            resultsDiv.innerHTML = '';
-            return;
-        }
-        resultsDiv.innerHTML = '<div class="no-results">🔍 Поиск...</div>';
-        resultsDiv.style.display = 'block';
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'search_users', text: query }));
-        }
+        var q = document.getElementById('search-input').value.trim(), r = document.getElementById('search-results');
+        if (!q) { r.style.display = 'none'; r.innerHTML = ''; return; }
+        r.innerHTML = '<div class="no-results">🔍 Поиск...</div>'; r.style.display = 'block';
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'search_users', text: q }));
     }
-    
+
     function showSearchResults(users) {
-        var resultsDiv = document.getElementById('search-results');
-        if (!resultsDiv) return;
-        if (!users || users.length === 0) {
-            resultsDiv.innerHTML = '<div class="no-results">👤 Пользователи не найдены</div>';
-            return;
-        }
-        var html = '';
-        users.forEach(function(user) {
-            if (user !== myName) {
-                var isSaved = savedContacts.includes(user);
-                var icon = isSaved ? '📱' : '👤';
-                html += '<div class="search-result-item"><span>' + icon + ' ' + user + '</span><button onclick="addContactByName(\'' + user + '\'); clearSearch();">➕ Добавить</button></div>';
-            }
-        });
-        resultsDiv.innerHTML = html || '<div class="no-results">👤 Пользователи не найдены</div>';
+        var r = document.getElementById('search-results');
+        if (!users || !users.length) { r.innerHTML = '<div class="no-results">👤 Не найдены</div>'; return; }
+        var h = '';
+        users.forEach(u => { if (u !== myName) h += '<div class="search-result-item"><span>' + (savedContacts.includes(u) ? '📱' : '👤') + ' ' + u + '</span><button onclick="addContactByName(\'' + u + '\'); clearSearch();">➕ Добавить</button></div>'; });
+        r.innerHTML = h || '<div class="no-results">👤 Не найдены</div>';
     }
-    
-    function addContactByName(username) {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'add_contact', text: username }));
-        }
-    }
-    
-    function addContact() {
-        var name = document.getElementById('new-contact-name').value.trim();
-        if (!name) { showToast('Введите имя пользователя', true); return; }
-        if (name === myName) { showToast('Нельзя добавить самого себя', true); return; }
-        addContactByName(name);
-    }
-    
-    function addExistingContact(name) { addContactByName(name); }
-    
-    function deleteContact(name) {
-        if (confirm('Удалить контакт ' + name + '?')) {
-            if (ws && ws.readyState === WebSocket.OPEN) {
-                ws.send(JSON.stringify({ type: 'delete_contact', text: name }));
-            }
-        }
-    }
-    
-    function getAllUsers() {
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'get_users' }));
-        } else { alert("Нет соединения с сервером"); }
-    }
-    
-    function clearSearch() {
-        document.getElementById('search-input').value = '';
-        document.getElementById('search-results').style.display = 'none';
-        document.getElementById('search-results').innerHTML = '';
-    }
-    
-    function addMemberToGroup() {
-        if (!currentChat || !isGroup) { showToast('Выберите группу', true); return; }
-        var username = prompt('Введите имя пользователя для добавления:');
-        if (username && username.trim() && username.trim() !== myName) {
-            ws.send(JSON.stringify({ type: 'add_group_member', to: currentChat, text: username.trim() }));
-        }
-    }
-    
-    function removeMemberFromGroup() {
-        if (!currentChat || !isGroup) { showToast('Выберите группу', true); return; }
-        var username = prompt('Введите имя пользователя для удаления:');
-        if (username && username.trim()) {
-            ws.send(JSON.stringify({ type: 'remove_group_member', to: currentChat, text: username.trim() }));
-        }
-    }
-    
-    var currentChatName = '';
-    
-    function selectUser(name) {
-        currentChat = name;
+
+    function addContactByName(n) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'add_contact', text: n })); }
+    function addContact() { var n = document.getElementById('new-contact-name').value.trim(); if (!n) { showToast('Введите имя', true); return; } if (n === myName) { showToast('Нельзя добавить себя', true); return; } addContactByName(n); }
+    function addExistingContact(n) { addContactByName(n); }
+    function deleteContact(n) { if (confirm('Удалить контакт ' + n + '?')) ws.send(JSON.stringify({ type: 'delete_contact', text: n })); }
+    function getAllUsers() { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'get_users' })); }
+    function clearSearch() { document.getElementById('search-input').value = ''; document.getElementById('search-results').style.display = 'none'; document.getElementById('search-results').innerHTML = ''; }
+
+    function addMemberToGroup() { var n = prompt('Имя пользователя для добавления:'); if (n && n.trim() && n.trim() !== myName) ws.send(JSON.stringify({ type: 'add_group_member', to: currentChat, text: n.trim() })); else if (n === myName) showToast('Нельзя добавить себя', true); }
+    function removeMemberFromGroup() { var n = prompt('Имя пользователя для удаления:'); if (n && n.trim()) ws.send(JSON.stringify({ type: 'remove_group_member', to: currentChat, text: n.trim() })); }
+
+    function selectUser(n) {
+        currentChat = n;
         isGroup = false;
-        currentChatName = name;
-        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">💬 ' + name + '</span>';
+        currentChatName = n;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">💬 ' + n + '</span>';
         document.getElementById('messages').innerHTML = '';
         document.getElementById('input').style.display = 'flex';
-        ws.send(JSON.stringify({ type: 'select_dialog', to: name }));
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_dialog', to: n }));
         clearSearch();
         if (window.innerWidth <= 768) toggleSidebar();
     }
-    
-    function selectGroup(id, name) {
+
+    function selectGroup(id, n) {
         currentChat = id;
         isGroup = true;
-        currentChatName = name;
-        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + name + '</span>';
+        currentChatName = n;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + n + '</span>';
         document.getElementById('messages').innerHTML = '';
         document.getElementById('input').style.display = 'flex';
-        ws.send(JSON.stringify({ type: 'select_group', to: id }));
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_group', to: id }));
         clearSearch();
         if (window.innerWidth <= 768) toggleSidebar();
     }
-    
-    function showCreateGroup() {
-        var name = prompt('Название группы:');
-        if (!name) return;
-        var members = prompt('Участники (через запятую):');
-        ws.send(JSON.stringify({ type: 'create_group', groupName: name, members: myName + ',' + members }));
-    }
-    
-    function logout() { location.reload(); }
-    
-    document.getElementById('msg').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') send();
-    });
-    
-    console.log("Скрипт загружен");
+
+    function showCreateGroup() { var n = prompt('Название группы:'); if (!n) return; var m = prompt('Участники (через запятую):'); ws.send(JSON.stringify({ type: 'create_group', groupName: n, members: myName + ',' + m })); }
+    function logout() { if (ws) ws.close(); location.reload(); }
+
+    document.getElementById('msg').addEventListener('keypress', e => { if (e.key === 'Enter') send(); });
 </script>
 </body>
 </html>
