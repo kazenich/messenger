@@ -38,3 +38,12 @@ func broadcastOnlineList() {
 		client.Conn.WriteJSON(msg)
 	}
 }
+
+func broadcastGroupListToAll() {
+	clientsMu.RLock()
+	defer clientsMu.RUnlock()
+	for client := range clients {
+		groups := getUserGroups(client.Name)
+		client.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(groups, ",")})
+	}
+}
