@@ -191,7 +191,7 @@
 </div>
 
 <script>
-    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [], currentGroupCreator = '', currentChatName = '';
+    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [], allUsersList = [];
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
     function showToast(msg, isErr) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#27ae60'; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); }
@@ -217,7 +217,6 @@
             document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
             return;
         }
-        // Разрешаем буквы, цифры, пробелы, подчёркивание
         var validRegex = /^[a-zA-Z0-9_а-яА-ЯёЁ\s]+$/;
         if (!validRegex.test(u)) {
             document.getElementById('reg-error').textContent = 'Имя может содержать только буквы, цифры, пробелы и подчёркивание';
@@ -282,23 +281,27 @@
     }
 
     function handleChatMessage(m) {
-        if (m.type === 'online') updateOnlineUsers(m.text ? m.text.split(',') : []);
-        else if (m.type === 'group_list') updateGroups(m.text);
-        else if (m.type === 'contact_list') { savedContacts = m.text ? m.text.split(',') : []; renderContacts(); }
-        else if (m.type === 'search_results') showSearchResults(m.text ? m.text.split(',') : []);
-        else if (m.type === 'user_list') alert('Пользователи:\n' + (m.text ? m.text.split(',').join('\n') : 'Нет других'));
-        else if (m.type === 'add_contact_result') { if (m.success) { showToast(m.text); document.getElementById('new-contact-name').value = ''; } else showToast(m.error, true); }
-        else if (m.type === 'delete_contact_result') showToast(m.text);
-        else if (m.type === 'group_action_result') { if (m.success) showToast(m.text); else showToast(m.error, true); }
-        else if (m.type === 'message_error') { showToast(m.error || 'Ошибка отправки', true); }
-        else if (m.type === 'history') showMessage(m.from, m.text, m.imageData, m.sticker, false);
-        else if (m.type === 'message') showMessage(m.from, m.text, m.imageData, m.sticker, m.from === myName);
-        else if (m.type === 'member_list') {
-            currentGroupCreator = m.GroupName || '';
-            var members = m.text ? m.text.split(',') : [];
-            var btn = '';
-            if (currentGroupCreator === myName) btn = '<div class="group-buttons"><button onclick="addMemberToGroup()">➕</button><button onclick="removeMemberFromGroup()">➖</button></div>';
-            document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + currentChatName + ' (' + members.length + ')</span>' + btn;
+        console.log("Получено:", m.type, m);
+        if (m.type === 'online') {
+            updateOnlineUsers(m.text ? m.text.split(',') : []);
+        } else if (m.type === 'contact_list') {
+            savedContacts = m.text ? m.text.split(',') : [];
+            renderContacts();
+        } else if (m.type === 'search_results') {
+            showSearchResults(m.text ? m.text.split(',') : []);
+        } else if (m.type === 'user_list') {
+            allUsersList = m.text ? m.text.split(',') : [];
+            console.log("Все пользователи:", allUsersList);
+        } else if (m.type === 'add_contact_result') {
+            if (m.success) { showToast(m.text); document.getElementById('new-contact-name').value = ''; } else showToast(m.error, true);
+        } else if (m.type === 'delete_contact_result') {
+            showToast(m.text);
+        } else if (m.type === 'message_error') {
+            showToast(m.error || 'Ошибка отправки', true);
+        } else if (m.type === 'history') {
+            showMessage(m.from, m.text, m.imageData, m.sticker, false);
+        } else if (m.type === 'message') {
+            showMessage(m.from, m.text, m.imageData, m.sticker, m.from === myName);
         }
     }
 
@@ -327,34 +330,37 @@
     }
 
     function updateOnlineUsers(users) {
-        var div = document.getElementById('online-users');
-        if (!div) return;
+        var onlineDiv = document.getElementById('online-users');
+        if (!onlineDiv) return;
         var h = '';
-        users.forEach(u => { if (u !== myName) h += '<div class="contact" onclick="selectUser(\'' + u + '\')"><span class="contact-name">' + (savedContacts.includes(u) ? '📱' : '🟢') + ' ' + u + '</span><div class="contact-actions"><button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + u + '\')">➕</button></div></div>'; });
+        users.forEach(u => { if (u !== myName) h += '<div class="contact" onclick="selectUser(\'' + u + '\')"><span class="contact-name">🟢 ' + u + '</span><div class="contact-actions"><button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + u + '\')">➕</button></div></div>'; });
         if (!h) h = '<div style="padding: 20px; text-align: center; color: #999;">Никого нет в сети</div>';
-        div.innerHTML = h;
-    }
-
-    function updateGroups(groups) {
-        if (!groups) return;
-        var h = '<div class="contact-section"><div class="section-title">👥 ГРУППЫ</div>';
-        groups.split(',').forEach(g => { var p = g.split('|'); if (p.length === 2) h += '<div class="contact" onclick="selectGroup(\'' + p[0] + '\',\'' + p[1] + '\')"><span class="contact-name">👥 ' + p[1] + '</span></div>'; });
-        var div = document.getElementById('contacts');
-        if (div) div.innerHTML = h + div.innerHTML;
+        onlineDiv.innerHTML = h;
     }
 
     function searchUsers() {
-        var q = document.getElementById('search-input').value.trim(), r = document.getElementById('search-results');
+        var q = document.getElementById('search-input').value.trim();
+        var r = document.getElementById('search-results');
         if (!q) { r.style.display = 'none'; r.innerHTML = ''; return; }
-        r.innerHTML = '<div class="no-results">🔍 Поиск...</div>'; r.style.display = 'block';
-        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'search_users', text: q }));
+        r.innerHTML = '<div class="no-results">🔍 Поиск...</div>';
+        r.style.display = 'block';
+        if (ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'search_users', text: q }));
+        }
     }
 
     function showSearchResults(users) {
         var r = document.getElementById('search-results');
-        if (!users || !users.length) { r.innerHTML = '<div class="no-results">👤 Не найдены</div>'; return; }
+        if (!users || users.length === 0) {
+            r.innerHTML = '<div class="no-results">👤 Не найдены</div>';
+            return;
+        }
         var h = '';
-        users.forEach(u => { if (u !== myName) h += '<div class="search-result-item"><span>' + (savedContacts.includes(u) ? '📱' : '👤') + ' ' + u + '</span><button onclick="addContactByName(\'' + u + '\'); clearSearch();">➕ Добавить</button></div>'; });
+        users.forEach(u => {
+            if (u !== myName) {
+                h += '<div class="search-result-item"><span>👤 ' + u + '</span><button onclick="addContactByName(\'' + u + '\'); clearSearch();">➕ Добавить</button></div>';
+            }
+        });
         r.innerHTML = h || '<div class="no-results">👤 Не найдены</div>';
     }
 
@@ -365,16 +371,35 @@
     function getAllUsers() { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'get_users' })); }
     function clearSearch() { document.getElementById('search-input').value = ''; document.getElementById('search-results').style.display = 'none'; document.getElementById('search-results').innerHTML = ''; }
 
-    function addMemberToGroup() { var n = prompt('Имя пользователя для добавления:'); if (n && n.trim() && n.trim() !== myName) ws.send(JSON.stringify({ type: 'add_group_member', to: currentChat, text: n.trim() })); else if (n === myName) showToast('Нельзя добавить себя', true); }
-    function removeMemberFromGroup() { var n = prompt('Имя пользователя для удаления:'); if (n && n.trim()) ws.send(JSON.stringify({ type: 'remove_group_member', to: currentChat, text: n.trim() })); }
+    function selectUser(n) {
+        currentChat = n;
+        isGroup = false;
+        currentChatName = n;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">💬 ' + n + '</span>';
+        document.getElementById('messages').innerHTML = '';
+        document.getElementById('input').style.display = 'flex';
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_dialog', to: n }));
+        clearSearch();
+        if (window.innerWidth <= 768) toggleSidebar();
+    }
 
-    function selectUser(n) { currentChat = n; isGroup = false; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">💬 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_dialog', to: n })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
-    function selectGroup(id, n) { currentChat = id; isGroup = true; currentChatName = n; document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + n + '</span>'; document.getElementById('messages').innerHTML = ''; document.getElementById('input').style.display = 'flex'; if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_group', to: id })); clearSearch(); if (window.innerWidth <= 768) toggleSidebar(); }
+    function selectGroup(id, n) {
+        currentChat = id;
+        isGroup = true;
+        currentChatName = n;
+        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + n + '</span>';
+        document.getElementById('messages').innerHTML = '';
+        document.getElementById('input').style.display = 'flex';
+        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_group', to: id }));
+        clearSearch();
+        if (window.innerWidth <= 768) toggleSidebar();
+    }
 
     function showCreateGroup() { var n = prompt('Название группы:'); if (!n) return; var m = prompt('Участники (через запятую):'); ws.send(JSON.stringify({ type: 'create_group', groupName: n, members: myName + ',' + m })); }
     function logout() { if (ws) ws.close(); location.reload(); }
 
     document.getElementById('msg').addEventListener('keypress', e => { if (e.key === 'Enter') send(); });
+    getAllUsers();
 </script>
 </body>
 </html>

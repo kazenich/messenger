@@ -5,27 +5,45 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sort"
 	"strings"
+	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
 	"golang.org/x/crypto/bcrypt"
 )
 
+type Client struct {
+	Conn          *websocket.Conn
+	Name          string
+	CurrentDialog string
+	IsGroup       bool
+}
+
+var clients = make(map[*Client]bool)
+var mutex = &sync.Mutex{}
+var db *sql.DB
+
 var upgrader = websocket.Upgrader{
 	CheckOrigin: func(r *http.Request) bool { return true },
 }
 
-var db *sql.DB
-
 type Message struct {
-	Type     string `json:"type"`
-	From     string `json:"from"`
-	To       string `json:"to"`
-	Text     string `json:"text"`
-	Password string `json:"password"`
-	Success  bool   `json:"success"`
-	Error    string `json:"error"`
+	From      string `json:"from"`
+	To        string `json:"to"`
+	Text      string `json:"text"`
+	Time      string `json:"time"`
+	Type      string `json:"type"`
+	IsGroup   bool   `json:"isGroup"`
+	GroupName string `json:"groupName"`
+	Members   string `json:"members"`
+	Password  string `json:"password"`
+	Success   bool   `json:"success"`
+	Error     string `json:"error"`
+	ImageData string `json:"imageData"`
+	Sticker   string `json:"sticker"`
 }
 
 func initDB() {
@@ -34,11 +52,47 @@ func initDB() {
 	if err != nil {
 		panic(err)
 	}
+
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		username TEXT PRIMARY KEY,
-		password_hash TEXT
+		password_hash TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	)`)
-	fmt.Println("DB ready")
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		from_user TEXT,
+		to_user TEXT,
+		text TEXT,
+		image_data TEXT,
+		sticker TEXT,
+		time TEXT,
+		is_group INTEGER DEFAULT 0,
+		group_id TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS groups (
+		id TEXT PRIMARY KEY,
+		name TEXT,
+		creator TEXT,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS group_members (
+		group_id TEXT,
+		user_name TEXT,
+		joined_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		PRIMARY KEY (group_id, user_name)
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS contacts (
+		user_name TEXT,
+		contact_name TEXT,
+		PRIMARY KEY (user_name, contact_name)
+	)`)
+
+	fmt.Println("База данных SQLite готова")
 }
 
 func isValidUsername(username string) bool {
@@ -46,7 +100,6 @@ func isValidUsername(username string) bool {
 		return false
 	}
 	for _, ch := range username {
-		// Разрешаем пробелы
 		if ch == ' ' {
 			continue
 		}
@@ -60,18 +113,15 @@ func isValidUsername(username string) bool {
 }
 
 func isValidMessage(text string) bool {
-	// Запрещаем хештеги (#)
 	if strings.Contains(text, "#") {
 		return false
 	}
-	// Запрещаем опасные символы и теги
 	dangerous := []string{"<", ">", "script", "javascript", "onclick", "onerror", "ondblclick", "onload", "&lt;", "&gt;"}
 	for _, d := range dangerous {
 		if strings.Contains(strings.ToLower(text), d) {
 			return false
 		}
 	}
-	// Ограничение длины сообщения
 	if len(text) > 1000 {
 		return false
 	}
@@ -105,18 +155,74 @@ func loginUser(username, password string) bool {
 	return err == nil
 }
 
+func getContacts(user string) []string {
+	rows, _ := db.Query("SELECT contact_name FROM contacts WHERE user_name = ?", user)
+	defer rows.Close()
+	var contacts []string
+	for rows.Next() {
+		var c string
+		rows.Scan(&c)
+		contacts = append(contacts, c)
+	}
+	return contacts
+}
+
+func getAllUsers(current string) []string {
+	rows, _ := db.Query("SELECT username FROM users WHERE username != ?", current)
+	defer rows.Close()
+	var users []string
+	for rows.Next() {
+		var u string
+		rows.Scan(&u)
+		users = append(users, u)
+	}
+	return users
+}
+
+func searchUsers(query, current string) []string {
+	rows, _ := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", current)
+	defer rows.Close()
+	var users []string
+	for rows.Next() {
+		var u string
+		rows.Scan(&u)
+		users = append(users, u)
+	}
+	return users
+}
+
+func getOnlineUsers() []string {
+	mutex.Lock()
+	defer mutex.Unlock()
+	var users []string
+	for c := range clients {
+		users = append(users, c.Name)
+	}
+	sort.Strings(users)
+	return users
+}
+
+func broadcastOnlineList() {
+	mutex.Lock()
+	defer mutex.Unlock()
+	users := getOnlineUsers()
+	msg := Message{Type: "online", Text: strings.Join(users, ",")}
+	for c := range clients {
+		c.Conn.WriteJSON(msg)
+	}
+}
+
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
 	}
-	defer conn.Close()
 
 	for {
 		var msg Message
 		err := conn.ReadJSON(&msg)
 		if err != nil {
-			break
+			return
 		}
 
 		switch msg.Type {
@@ -139,17 +245,30 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "login":
 			if loginUser(msg.From, msg.Password) {
-				conn.WriteJSON(Message{Type: "login_result", Success: true, Text: "Вход выполнен"})
+				client := &Client{Conn: conn, Name: msg.From}
+				mutex.Lock()
+				clients[client] = true
+				mutex.Unlock()
+
+				contacts := getContacts(msg.From)
+				conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+
+				allUsers := getAllUsers(msg.From)
+				conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(allUsers, ",")})
+
+				conn.WriteJSON(Message{Type: "login_result", Success: true})
+				broadcastOnlineList()
 			} else {
 				conn.WriteJSON(Message{Type: "login_result", Success: false, Error: "Неверный логин или пароль"})
 			}
 
-		case "message":
-			if !isValidMessage(msg.Text) {
-				conn.WriteJSON(Message{Type: "message_error", Success: false, Error: "Сообщение содержит запрещённые символы или хештеги (#)"})
-				continue
-			}
-			conn.WriteJSON(Message{Type: "message", Text: msg.Text, Success: true})
+		case "search_users":
+			users := searchUsers(msg.Text, "")
+			conn.WriteJSON(Message{Type: "search_results", Text: strings.Join(users, ",")})
+
+		case "get_users":
+			users := getAllUsers("")
+			conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(users, ",")})
 		}
 	}
 }
