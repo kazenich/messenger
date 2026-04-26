@@ -61,6 +61,7 @@ func initDB() {
 		panic("DATABASE_URL environment variable is required")
 	}
 
+	fmt.Println("Connecting to PostgreSQL...")
 	var err error
 	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
@@ -68,18 +69,16 @@ func initDB() {
 	}
 
 	if err = db.Ping(); err != nil {
-		panic(err)
+		panic("Failed to connect to PostgreSQL: " + err.Error())
 	}
+	fmt.Println("Connected to PostgreSQL!")
 
-	fmt.Println("Подключено к PostgreSQL!")
-
-	// Таблица пользователей
+	// Таблицы
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		username TEXT PRIMARY KEY,
 		password_hash TEXT
 	)`)
 
-	// Таблица сообщений
 	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
 		id SERIAL PRIMARY KEY,
 		from_user TEXT,
@@ -92,28 +91,25 @@ func initDB() {
 		group_id TEXT
 	)`)
 
-	// Таблица групп
 	db.Exec(`CREATE TABLE IF NOT EXISTS groups (
 		id TEXT PRIMARY KEY,
 		name TEXT,
 		creator TEXT
 	)`)
 
-	// Участники групп
 	db.Exec(`CREATE TABLE IF NOT EXISTS group_members (
 		group_id TEXT,
 		user_name TEXT,
 		PRIMARY KEY (group_id, user_name)
 	)`)
 
-	// Контакты
 	db.Exec(`CREATE TABLE IF NOT EXISTS contacts (
 		user_name TEXT,
 		contact_name TEXT,
 		PRIMARY KEY (user_name, contact_name)
 	)`)
 
-	fmt.Println("Все таблицы готовы")
+	fmt.Println("All tables ready")
 }
 
 func isValidUsername(username string) bool {
