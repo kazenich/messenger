@@ -15,6 +15,21 @@ func main() {
 	})
 	http.HandleFunc("/ws", handleWebSocket)
 
+	// Временный маршрут для просмотра пользователей
+	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
+		rows, err := db.Query("SELECT username FROM users")
+		if err != nil {
+			fmt.Fprintln(w, "Ошибка:", err)
+			return
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var u string
+			rows.Scan(&u)
+			fmt.Fprintln(w, u)
+		}
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
