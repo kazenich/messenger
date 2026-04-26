@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
@@ -50,6 +51,26 @@ func isValidUsername(username string) bool {
 		     (ch >= 'а' && ch <= 'я') || (ch >= 'А' && ch <= 'Я') || ch == 'ё' || ch == 'Ё') {
 			return false
 		}
+	}
+	return true
+}
+
+// Фильтрация сообщений: запрет спецсимволов и хештегов
+func isValidMessage(text string) bool {
+	// Запрещаем хештеги (#)
+	if strings.Contains(text, "#") {
+		return false
+	}
+	// Запрещаем опасные спецсимволы
+	dangerousChars := []string{"<", ">", "script", "javascript", "onclick", "onerror", "&", "<script", "</script>"}
+	for _, ch := range dangerousChars {
+		if strings.Contains(strings.ToLower(text), ch) {
+			return false
+		}
+	}
+	// Ограничение длины сообщения
+	if len(text) > 1000 {
+		return false
 	}
 	return true
 }
@@ -119,6 +140,15 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			} else {
 				conn.WriteJSON(Message{Type: "login_result", Success: false, Error: "Неверный логин или пароль"})
 			}
+
+		case "message":
+			// Фильтрация сообщения
+			if !isValidMessage(msg.Text) {
+				conn.WriteJSON(Message{Type: "message_error", Success: false, Error: "Сообщение содержит запрещённые символы или хештеги (#)"})
+				continue
+			}
+			// Здесь будет обработка сообщения (пока просто эхо)
+			conn.WriteJSON(Message{Type: "message", Text: msg.Text, Success: true})
 		}
 	}
 }

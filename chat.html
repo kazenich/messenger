@@ -213,23 +213,15 @@
         var p = document.getElementById('reg-password').value;
         var p2 = document.getElementById('reg-password2').value;
         
-        // Проверка длины
-        if (u.length < 3) {
+        if (u.length < 3 || u.length > 20) {
             document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
             return;
         }
-        if (u.length > 20) {
-            document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
-            return;
-        }
-        
-        // Проверка на допустимые символы (буквы, цифры, подчёркивание, русские буквы)
         var validRegex = /^[a-zA-Z0-9_а-яА-ЯёЁ]+$/;
         if (!validRegex.test(u)) {
             document.getElementById('reg-error').textContent = 'Имя может содержать только буквы, цифры и подчёркивание';
             return;
         }
-        
         if (!u || !p) {
             document.getElementById('reg-error').textContent = 'Заполните все поля';
             return;
@@ -297,6 +289,7 @@
         else if (m.type === 'add_contact_result') { if (m.success) { showToast(m.text); document.getElementById('new-contact-name').value = ''; } else showToast(m.error, true); }
         else if (m.type === 'delete_contact_result') showToast(m.text);
         else if (m.type === 'group_action_result') { if (m.success) showToast(m.text); else showToast(m.error, true); }
+        else if (m.type === 'message_error') { showToast(m.error || 'Ошибка отправки', true); }
         else if (m.type === 'history') showMessage(m.from, m.text, m.imageData, m.sticker, false);
         else if (m.type === 'message') showMessage(m.from, m.text, m.imageData, m.sticker, m.from === myName);
         else if (m.type === 'member_list') {
