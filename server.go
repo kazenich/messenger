@@ -8,7 +8,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
