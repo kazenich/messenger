@@ -129,7 +129,7 @@
             <div id="login-error" class="error"></div>
         </div>
         <div id="register-form" class="auth-form">
-            <input type="text" id="reg-username" placeholder="Придумайте имя">
+            <input type="text" id="reg-username" placeholder="Придумайте имя (буквы, цифры, пробелы, _)">
             <input type="password" id="reg-password" placeholder="Придумайте пароль">
             <input type="password" id="reg-password2" placeholder="Повторите пароль">
             <button class="btn" onclick="doRegister()">Зарегистрироваться</button>
@@ -217,9 +217,10 @@
             document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
             return;
         }
-        var validRegex = /^[a-zA-Z0-9_а-яА-ЯёЁ]+$/;
+        // Разрешаем буквы, цифры, пробелы, подчёркивание
+        var validRegex = /^[a-zA-Z0-9_а-яА-ЯёЁ\s]+$/;
         if (!validRegex.test(u)) {
-            document.getElementById('reg-error').textContent = 'Имя может содержать только буквы, цифры и подчёркивание';
+            document.getElementById('reg-error').textContent = 'Имя может содержать только буквы, цифры, пробелы и подчёркивание';
             return;
         }
         if (!u || !p) {

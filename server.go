@@ -46,25 +46,28 @@ func isValidUsername(username string) bool {
 		return false
 	}
 	for _, ch := range username {
-		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || 
-		     (ch >= '0' && ch <= '9') || ch == '_' ||
-		     (ch >= 'а' && ch <= 'я') || (ch >= 'А' && ch <= 'Я') || ch == 'ё' || ch == 'Ё') {
+		// Разрешаем пробелы
+		if ch == ' ' {
+			continue
+		}
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+			(ch >= '0' && ch <= '9') || ch == '_' ||
+			(ch >= 'а' && ch <= 'я') || (ch >= 'А' && ch <= 'Я') || ch == 'ё' || ch == 'Ё') {
 			return false
 		}
 	}
 	return true
 }
 
-// Фильтрация сообщений: запрет спецсимволов и хештегов
 func isValidMessage(text string) bool {
 	// Запрещаем хештеги (#)
 	if strings.Contains(text, "#") {
 		return false
 	}
-	// Запрещаем опасные спецсимволы
-	dangerousChars := []string{"<", ">", "script", "javascript", "onclick", "onerror", "&", "<script", "</script>"}
-	for _, ch := range dangerousChars {
-		if strings.Contains(strings.ToLower(text), ch) {
+	// Запрещаем опасные символы и теги
+	dangerous := []string{"<", ">", "script", "javascript", "onclick", "onerror", "ondblclick", "onload", "&lt;", "&gt;"}
+	for _, d := range dangerous {
+		if strings.Contains(strings.ToLower(text), d) {
 			return false
 		}
 	}
@@ -125,7 +128,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				case "username_length":
 					errMsg = "Имя должно быть от 3 до 20 символов"
 				case "invalid_chars":
-					errMsg = "Имя может содержать только буквы, цифры и подчёркивание"
+					errMsg = "Имя может содержать только буквы, цифры, пробелы и подчёркивание"
 				case "user_exists":
 					errMsg = "Имя уже занято"
 				}
@@ -142,12 +145,10 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "message":
-			// Фильтрация сообщения
 			if !isValidMessage(msg.Text) {
 				conn.WriteJSON(Message{Type: "message_error", Success: false, Error: "Сообщение содержит запрещённые символы или хештеги (#)"})
 				continue
 			}
-			// Здесь будет обработка сообщения (пока просто эхо)
 			conn.WriteJSON(Message{Type: "message", Text: msg.Text, Success: true})
 		}
 	}
