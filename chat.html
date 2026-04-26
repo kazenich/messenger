@@ -209,44 +209,76 @@
     }
 
     function doRegister() {
-    var u = document.getElementById('reg-username').value.trim();
-    var p = document.getElementById('reg-password').value;
-    var p2 = document.getElementById('reg-password2').value;
-    
-    // Проверка длины
-    if (u.length < 3) {
-        document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
-        return;
+        var u = document.getElementById('reg-username').value.trim();
+        var p = document.getElementById('reg-password').value;
+        var p2 = document.getElementById('reg-password2').value;
+        
+        // Проверка длины
+        if (u.length < 3) {
+            document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
+            return;
+        }
+        if (u.length > 20) {
+            document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
+            return;
+        }
+        
+        // Проверка на допустимые символы (буквы, цифры, подчёркивание, русские буквы)
+        var validRegex = /^[a-zA-Z0-9_а-яА-ЯёЁ]+$/;
+        if (!validRegex.test(u)) {
+            document.getElementById('reg-error').textContent = 'Имя может содержать только буквы, цифры и подчёркивание';
+            return;
+        }
+        
+        if (!u || !p) {
+            document.getElementById('reg-error').textContent = 'Заполните все поля';
+            return;
+        }
+        if (p !== p2) {
+            document.getElementById('reg-error').textContent = 'Пароли не совпадают';
+            return;
+        }
+        if (p.length < 4) {
+            document.getElementById('reg-error').textContent = 'Пароль минимум 4 символа';
+            return;
+        }
+        
+        document.getElementById('reg-error').textContent = '';
+        document.getElementById('reg-success').textContent = 'Регистрация...';
+        
+        var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
+        var temp = new WebSocket(url);
+        
+        temp.onopen = function() {
+            temp.send(JSON.stringify({ type: 'register', from: u, password: p }));
+        };
+        
+        temp.onmessage = function(e) {
+            var m = JSON.parse(e.data);
+            if (m.type === 'register_result') {
+                if (m.success) {
+                    document.getElementById('reg-success').textContent = 'Регистрация успешна! Теперь войдите.';
+                    setTimeout(function() {
+                        showTab('login');
+                        document.getElementById('login-username').value = u;
+                        temp.close();
+                    }, 1500);
+                } else {
+                    document.getElementById('reg-error').textContent = m.error;
+                    document.getElementById('reg-success').textContent = '';
+                }
+            }
+        };
+        
+        temp.onerror = function() {
+            document.getElementById('reg-error').textContent = 'Ошибка подключения';
+            document.getElementById('reg-success').textContent = '';
+        };
     }
-    if (u.length > 20) {
-        document.getElementById('reg-error').textContent = 'Имя должно быть от 3 до 20 символов';
-        return;
-    }
-    
-    // Проверка на допустимые символы (буквы, цифры, подчёркивание)
-    var validRegex = /^[a-zA-Z0-9_]+$/;
-    if (!validRegex.test(u)) {
-        document.getElementById('reg-error').textContent = 'Имя может содержать только буквы, цифры и подчёркивание';
-        return;
-    }
-    
-    if (!u || !p) {
-        document.getElementById('reg-error').textContent = 'Заполните все поля';
-        return;
-    }
-    if (p !== p2) {
-        document.getElementById('reg-error').textContent = 'Пароли не совпадают';
-        return;
-    }
-    if (p.length < 4) {
-        document.getElementById('reg-error').textContent = 'Пароль минимум 4 символа';
-        return;
-    }
-    // ... остальной код регистрации
-}
 
     function doLogin() {
-        var u = document.getElementById('login-username').value.trim(), p = document.getElementById('login-password').value;
+        var u = document.getElementById('login-username').value.trim();
+        var p = document.getElementById('login-password').value;
         if (!u || !p) { document.getElementById('login-error').textContent = 'Введите имя и пароль'; return; }
         myName = u;
         var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
