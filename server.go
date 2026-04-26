@@ -440,10 +440,10 @@ func handleChat(client *Client) {
 		case "create_group":
 			groupID := createGroup(msg.GroupName, client.Name)
 			members := strings.Split(msg.Members, ",")
-			for _, m := range members {
-				m = strings.TrimSpace(m)
-				if m != "" && m != client.Name {
-					addMemberToGroup(groupID, m, client.Name)
+			for _, memberName := range members {
+				memberName = strings.TrimSpace(memberName)
+				if memberName != "" && memberName != client.Name {
+					addMemberToGroup(groupID, memberName, client.Name)
 				}
 			}
 			broadcastGroupListToAll()
@@ -500,10 +500,10 @@ func handleChat(client *Client) {
 				groupID := client.CurrentDialog
 				members := getGroupMembers(groupID)
 				saveMessage(client.Name, "", msg.Text, msg.ImageData, msg.Sticker, true, groupID)
-				for _, c := range clients {
-					for _, m := range members {
-						if c.Name == m && c.CurrentDialog == groupID && c.IsGroup {
-							c.Conn.WriteJSON(Message{
+				for otherClient := range clients {
+					for _, memberName := range members {
+						if otherClient.Name == memberName && otherClient.CurrentDialog == groupID && otherClient.IsGroup {
+							otherClient.Conn.WriteJSON(Message{
 								From:      client.Name,
 								Text:      msg.Text,
 								ImageData: msg.ImageData,
@@ -529,9 +529,9 @@ func handleChat(client *Client) {
 					Type:      "message",
 					IsGroup:   false,
 				})
-				for _, c := range clients {
-					if c.Name == msg.To {
-						c.Conn.WriteJSON(Message{
+				for otherClient := range clients {
+					if otherClient.Name == msg.To {
+						otherClient.Conn.WriteJSON(Message{
 							From:      client.Name,
 							Text:      msg.Text,
 							ImageData: msg.ImageData,
