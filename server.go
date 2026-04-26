@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/gorilla/websocket"
-	_ "modernc.org/sqlite"
+	_ "github.com/lib/pq"
 	"golang.org/x/crypto/bcrypt"
 )
 
@@ -46,9 +46,7 @@ type Message struct {
 	Sticker   string `json:"sticker"`
 }
 
-// Экранирование опасных символов для защиты от XSS
 func sanitizeText(text string) string {
-	// Заменяем опасные символы на HTML-сущности
 	text = strings.ReplaceAll(text, "&", "&amp;")
 	text = strings.ReplaceAll(text, "<", "&lt;")
 	text = strings.ReplaceAll(text, ">", "&gt;")
@@ -58,19 +56,32 @@ func sanitizeText(text string) string {
 }
 
 func initDB() {
+	dbURL := os.Getenv("DATABASE_URL")
+	if dbURL == "" {
+		panic("DATABASE_URL environment variable is required")
+	}
+
 	var err error
-	db, err = sql.Open("sqlite", "./chat.db")
+	db, err = sql.Open("postgres", dbURL)
 	if err != nil {
 		panic(err)
 	}
 
+	if err = db.Ping(); err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Подключено к PostgreSQL!")
+
+	// Таблица пользователей
 	db.Exec(`CREATE TABLE IF NOT EXISTS users (
 		username TEXT PRIMARY KEY,
 		password_hash TEXT
 	)`)
 
+	// Таблица сообщений
 	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		id SERIAL PRIMARY KEY,
 		from_user TEXT,
 		to_user TEXT,
 		text TEXT,
@@ -81,25 +92,28 @@ func initDB() {
 		group_id TEXT
 	)`)
 
+	// Таблица групп
 	db.Exec(`CREATE TABLE IF NOT EXISTS groups (
 		id TEXT PRIMARY KEY,
 		name TEXT,
 		creator TEXT
 	)`)
 
+	// Участники групп
 	db.Exec(`CREATE TABLE IF NOT EXISTS group_members (
 		group_id TEXT,
 		user_name TEXT,
 		PRIMARY KEY (group_id, user_name)
 	)`)
 
+	// Контакты
 	db.Exec(`CREATE TABLE IF NOT EXISTS contacts (
 		user_name TEXT,
 		contact_name TEXT,
 		PRIMARY KEY (user_name, contact_name)
 	)`)
 
-	fmt.Println("База данных SQLite готова")
+	fmt.Println("Все таблицы готовы")
 }
 
 func isValidUsername(username string) bool {
@@ -127,18 +141,18 @@ func registerUser(username, password string) error {
 		return fmt.Errorf("invalid_chars")
 	}
 	var exists int
-	db.QueryRow("SELECT 1 FROM users WHERE username = ?", username).Scan(&exists)
+	db.QueryRow("SELECT 1 FROM users WHERE username = $1", username).Scan(&exists)
 	if exists == 1 {
 		return fmt.Errorf("user_exists")
 	}
 	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	_, err := db.Exec("INSERT INTO users (username, password_hash) VALUES (?, ?)", username, string(hash))
+	_, err := db.Exec("INSERT INTO users (username, password_hash) VALUES ($1, $2)", username, string(hash))
 	return err
 }
 
 func loginUser(username, password string) bool {
 	var hash string
-	err := db.QueryRow("SELECT password_hash FROM users WHERE username = ?", username).Scan(&hash)
+	err := db.QueryRow("SELECT password_hash FROM users WHERE username = $1", username).Scan(&hash)
 	if err != nil {
 		return false
 	}
@@ -147,9 +161,8 @@ func loginUser(username, password string) bool {
 }
 
 func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
-	// Сохраняем ОРИГИНАЛЬНЫЙ текст (не экранированный) в БД
 	_, err := db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
 		from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroup, groupID)
 	if err != nil {
 		fmt.Println("Ошибка сохранения:", err)
@@ -158,14 +171,13 @@ func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupI
 
 func getPrivateHistory(u1, u2 string) []Message {
 	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
-		WHERE is_group = 0 AND ((from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?)) 
+		WHERE is_group = 0 AND ((from_user = $1 AND to_user = $2) OR (from_user = $2 AND to_user = $1)) 
 		ORDER BY id ASC LIMIT 50`, u1, u2, u2, u1)
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
 		var m Message
 		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
-		// Экранируем текст при отдаче
 		m.Text = sanitizeText(m.Text)
 		m.Type = "history"
 		msgs = append(msgs, m)
@@ -175,7 +187,7 @@ func getPrivateHistory(u1, u2 string) []Message {
 
 func getGroupHistory(groupID string) []Message {
 	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
-		WHERE is_group = 1 AND group_id = ? ORDER BY id ASC LIMIT 50`, groupID)
+		WHERE is_group = 1 AND group_id = $1 ORDER BY id ASC LIMIT 50`, groupID)
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
@@ -190,36 +202,36 @@ func getGroupHistory(groupID string) []Message {
 
 func createGroup(name, creator string) string {
 	groupID := "g" + fmt.Sprintf("%d", time.Now().UnixNano())
-	db.Exec("INSERT INTO groups (id, name, creator) VALUES (?, ?, ?)", groupID, name, creator)
-	db.Exec("INSERT INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, creator)
+	db.Exec("INSERT INTO groups (id, name, creator) VALUES ($1, $2, $3)", groupID, name, creator)
+	db.Exec("INSERT INTO group_members (group_id, user_name) VALUES ($1, $2)", groupID, creator)
 	return groupID
 }
 
 func addMemberToGroup(groupID, userName, creator string) error {
 	var exists int
-	db.QueryRow("SELECT 1 FROM groups WHERE id = ? AND creator = ?", groupID, creator).Scan(&exists)
+	db.QueryRow("SELECT 1 FROM groups WHERE id = $1 AND creator = $2", groupID, creator).Scan(&exists)
 	if exists == 0 {
 		return fmt.Errorf("not_creator")
 	}
-	db.Exec("INSERT OR IGNORE INTO group_members (group_id, user_name) VALUES (?, ?)", groupID, userName)
+	db.Exec("INSERT INTO group_members (group_id, user_name) VALUES ($1, $2) ON CONFLICT DO NOTHING", groupID, userName)
 	return nil
 }
 
 func removeMemberFromGroup(groupID, userName, creator string) error {
 	var exists int
-	db.QueryRow("SELECT 1 FROM groups WHERE id = ? AND creator = ?", groupID, creator).Scan(&exists)
+	db.QueryRow("SELECT 1 FROM groups WHERE id = $1 AND creator = $2", groupID, creator).Scan(&exists)
 	if exists == 0 {
 		return fmt.Errorf("not_creator")
 	}
 	if userName == creator {
 		return fmt.Errorf("cannot_remove_creator")
 	}
-	db.Exec("DELETE FROM group_members WHERE group_id = ? AND user_name = ?", groupID, userName)
+	db.Exec("DELETE FROM group_members WHERE group_id = $1 AND user_name = $2", groupID, userName)
 	return nil
 }
 
 func getGroupMembers(groupID string) []string {
-	rows, _ := db.Query("SELECT user_name FROM group_members WHERE group_id = ?", groupID)
+	rows, _ := db.Query("SELECT user_name FROM group_members WHERE group_id = $1", groupID)
 	defer rows.Close()
 	var members []string
 	for rows.Next() {
@@ -232,18 +244,18 @@ func getGroupMembers(groupID string) []string {
 
 func getGroupName(groupID string) string {
 	var name string
-	db.QueryRow("SELECT name FROM groups WHERE id = ?", groupID).Scan(&name)
+	db.QueryRow("SELECT name FROM groups WHERE id = $1", groupID).Scan(&name)
 	return name
 }
 
 func getGroupCreator(groupID string) string {
 	var creator string
-	db.QueryRow("SELECT creator FROM groups WHERE id = ?", groupID).Scan(&creator)
+	db.QueryRow("SELECT creator FROM groups WHERE id = $1", groupID).Scan(&creator)
 	return creator
 }
 
 func getUserGroups(username string) []string {
-	rows, _ := db.Query("SELECT group_id FROM group_members WHERE user_name = ?", username)
+	rows, _ := db.Query("SELECT group_id FROM group_members WHERE user_name = $1", username)
 	defer rows.Close()
 	var groups []string
 	for rows.Next() {
@@ -256,16 +268,16 @@ func getUserGroups(username string) []string {
 
 func addContact(user, contact string) error {
 	var exists int
-	db.QueryRow("SELECT 1 FROM users WHERE username = ?", contact).Scan(&exists)
+	db.QueryRow("SELECT 1 FROM users WHERE username = $1", contact).Scan(&exists)
 	if exists == 0 {
 		return fmt.Errorf("user_not_found")
 	}
-	db.Exec("INSERT OR IGNORE INTO contacts (user_name, contact_name) VALUES (?, ?)", user, contact)
+	db.Exec("INSERT INTO contacts (user_name, contact_name) VALUES ($1, $2) ON CONFLICT DO NOTHING", user, contact)
 	return nil
 }
 
 func getContacts(user string) []string {
-	rows, _ := db.Query("SELECT contact_name FROM contacts WHERE user_name = ?", user)
+	rows, _ := db.Query("SELECT contact_name FROM contacts WHERE user_name = $1", user)
 	defer rows.Close()
 	var contacts []string
 	for rows.Next() {
@@ -277,11 +289,11 @@ func getContacts(user string) []string {
 }
 
 func deleteContact(user, contact string) {
-	db.Exec("DELETE FROM contacts WHERE user_name = ? AND contact_name = ?", user, contact)
+	db.Exec("DELETE FROM contacts WHERE user_name = $1 AND contact_name = $2", user, contact)
 }
 
 func searchUsers(query, current string) []string {
-	rows, _ := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", current)
+	rows, _ := db.Query("SELECT username FROM users WHERE username LIKE $1 AND username != $2 LIMIT 10", "%"+query+"%", current)
 	defer rows.Close()
 	var users []string
 	for rows.Next() {
@@ -293,7 +305,7 @@ func searchUsers(query, current string) []string {
 }
 
 func getAllUsers(current string) []string {
-	rows, _ := db.Query("SELECT username FROM users WHERE username != ?", current)
+	rows, _ := db.Query("SELECT username FROM users WHERE username != $1", current)
 	defer rows.Close()
 	var users []string
 	for rows.Next() {
@@ -424,8 +436,6 @@ func handleChat(client *Client) {
 		}
 		msg.From = client.Name
 		msg.Time = time.Now().Format("15:04")
-
-		// Экранируем текст сообщения перед отправкой
 		msg.Text = sanitizeText(msg.Text)
 
 		switch msg.Type {
@@ -507,17 +517,12 @@ func handleChat(client *Client) {
 			client.Conn.WriteJSON(Message{Type: "delete_contact_result", Success: true, Text: "Контакт удалён"})
 
 		case "message":
-			// Сохраняем ОРИГИНАЛЬНЫЙ текст (без экранирования) в БД
 			originalText := msg.Text
 			saveMessage(client.Name, msg.To, originalText, msg.ImageData, msg.Sticker, client.IsGroup, client.CurrentDialog)
 
-			// Отправляем ЭКРАНИРОВАННЫЙ текст клиентам
-			safeText := sanitizeText(originalText)
-
-			// Отправляем отправителю
 			client.Conn.WriteJSON(Message{
 				From:      client.Name,
-				Text:      safeText,
+				Text:      originalText,
 				ImageData: msg.ImageData,
 				Sticker:   msg.Sticker,
 				Time:      msg.Time,
@@ -525,14 +530,13 @@ func handleChat(client *Client) {
 				IsGroup:   client.IsGroup,
 			})
 
-			// Отправляем получателю
 			if !client.IsGroup {
 				clientsMu.RLock()
 				for c := range clients {
 					if c.Name == msg.To {
 						c.Conn.WriteJSON(Message{
 							From:      client.Name,
-							Text:      safeText,
+							Text:      originalText,
 							ImageData: msg.ImageData,
 							Sticker:   msg.Sticker,
 							Time:      msg.Time,
@@ -553,7 +557,7 @@ func handleChat(client *Client) {
 						if c.Name == m && c.CurrentDialog == client.CurrentDialog && c.IsGroup {
 							c.Conn.WriteJSON(Message{
 								From:      client.Name,
-								Text:      safeText,
+								Text:      originalText,
 								ImageData: msg.ImageData,
 								Sticker:   msg.Sticker,
 								Time:      msg.Time,
