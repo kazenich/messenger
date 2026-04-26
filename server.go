@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
@@ -309,8 +310,8 @@ func getOnlineUsers() []string {
 	mutex.Lock()
 	defer mutex.Unlock()
 	var users []string
-	for c := range clients {
-		users = append(users, c.Name)
+	for client := range clients {
+		users = append(users, client.Name)
 	}
 	sort.Strings(users)
 	return users
@@ -321,17 +322,17 @@ func broadcastOnlineList() {
 	defer mutex.Unlock()
 	users := getOnlineUsers()
 	msg := Message{Type: "online", Text: strings.Join(users, ",")}
-	for c := range clients {
-		c.Conn.WriteJSON(msg)
+	for client := range clients {
+		client.Conn.WriteJSON(msg)
 	}
 }
 
 func broadcastGroupListToAll() {
 	mutex.Lock()
 	defer mutex.Unlock()
-	for c := range clients {
-		groups := getUserGroups(c.Name)
-		c.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(groups, ",")})
+	for client := range clients {
+		groups := getUserGroups(client.Name)
+		client.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(groups, ",")})
 	}
 }
 
@@ -410,6 +411,7 @@ func handleChat(client *Client) {
 			return
 		}
 		msg.From = client.Name
+		msg.Time = time.Now().Format("15:04")
 
 		switch msg.Type {
 		case "select_dialog":
@@ -490,13 +492,13 @@ func handleChat(client *Client) {
 			client.Conn.WriteJSON(Message{Type: "delete_contact_result", Success: true, Text: "Контакт удалён"})
 
 		case "message":
+			if !isValidMessage(msg.Text) {
+				client.Conn.WriteJSON(Message{Type: "message_error", Success: false, Error: "Сообщение содержит запрещённые символы"})
+				continue
+			}
 			if client.IsGroup {
 				groupID := client.CurrentDialog
 				members := getGroupMembers(groupID)
-				if !isValidMessage(msg.Text) {
-					client.Conn.WriteJSON(Message{Type: "message_error", Success: false, Error: "Запрещённые символы"})
-					continue
-				}
 				saveMessage(client.Name, "", msg.Text, msg.ImageData, msg.Sticker, true, groupID)
 				for _, c := range clients {
 					for _, m := range members {
@@ -506,6 +508,7 @@ func handleChat(client *Client) {
 								Text:      msg.Text,
 								ImageData: msg.ImageData,
 								Sticker:   msg.Sticker,
+								Time:      msg.Time,
 								Type:      "message",
 								IsGroup:   true,
 							})
@@ -514,10 +517,6 @@ func handleChat(client *Client) {
 					}
 				}
 			} else {
-				if !isValidMessage(msg.Text) {
-					client.Conn.WriteJSON(Message{Type: "message_error", Success: false, Error: "Запрещённые символы"})
-					continue
-				}
 				saveMessage(client.Name, msg.To, msg.Text, msg.ImageData, msg.Sticker, false, "")
 				addContact(client.Name, msg.To)
 				addContact(msg.To, client.Name)
@@ -526,6 +525,7 @@ func handleChat(client *Client) {
 					Text:      msg.Text,
 					ImageData: msg.ImageData,
 					Sticker:   msg.Sticker,
+					Time:      msg.Time,
 					Type:      "message",
 					IsGroup:   false,
 				})
@@ -536,6 +536,7 @@ func handleChat(client *Client) {
 							Text:      msg.Text,
 							ImageData: msg.ImageData,
 							Sticker:   msg.Sticker,
+							Time:      msg.Time,
 							Type:      "message",
 							IsGroup:   false,
 						})
