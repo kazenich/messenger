@@ -306,13 +306,16 @@
         else if (m.type === 'group_list') updateGroups(m.text);
         else if (m.type === 'contact_list') { savedContacts = m.text ? m.text.split(',') : []; renderContacts(); }
         else if (m.type === 'search_results') showSearchResults(m.text ? m.text.split(',') : []);
-        else if (m.type === 'user_list') alert('Пользователи:\n' + (m.text ? m.text.split(',').join('\n') : 'Нет других'));
         else if (m.type === 'add_contact_result') { if (m.success) { showToast(m.text); document.getElementById('new-contact-name').value = ''; } else showToast(m.error, true); }
         else if (m.type === 'delete_contact_result') showToast(m.text);
         else if (m.type === 'group_action_result') { if (m.success) showToast(m.text); else showToast(m.error, true); }
         else if (m.type === 'message_error') { showToast(m.error || 'Ошибка отправки', true); }
         else if (m.type === 'history') showMessage(m.from, m.text, m.imageData, m.sticker, false);
         else if (m.type === 'message') showMessage(m.from, m.text, m.imageData, m.sticker, m.from === myName);
+        else if (m.type === 'user_list') {
+            // Просто игнорируем, не показываем alert
+            console.log("Пользователи загружены");
+        }
         else if (m.type === 'member_list') {
             currentGroupCreator = m.GroupName || '';
             var members = m.text ? m.text.split(',') : [];
