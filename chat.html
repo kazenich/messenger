@@ -191,7 +191,7 @@
 </div>
 
 <script>
-    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [], allUsersList = [];
+    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [];
 
     function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
     function showToast(msg, isErr) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#27ae60'; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); }
@@ -275,48 +275,38 @@
         myName = u;
         var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
         ws = new WebSocket(url);
-        ws.onopen = () => ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
-        ws.onmessage = e => { var m = JSON.parse(e.data); console.log("Ответ:", m); if (m.type === 'login_result') { if (m.success) { document.getElementById('auth').style.display = 'none'; document.getElementById('sidebar').style.display = 'flex'; document.getElementById('chat').style.display = 'flex'; document.getElementById('my-name').textContent = myName; handleChatMessage(m); } else { document.getElementById('login-error').textContent = m.error || 'Ошибка входа'; myName = ''; } } else { handleChatMessage(m); } };
-        ws.onerror = () => document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
-    }
-
-    function handleChatMessage(m) {
-        console.log("Получено:", m.type, m);
-        if (m.type === 'online') {
-            updateOnlineUsers(m.text ? m.text.split(',') : []);
-        } else if (m.type === 'contact_list') {
-            savedContacts = m.text ? m.text.split(',') : [];
-            renderContacts();
-        } else if (m.type === 'search_results') {
-            showSearchResults(m.text ? m.text.split(',') : []);
-        } else if (m.type === 'user_list') {
-            allUsersList = m.text ? m.text.split(',') : [];
-            console.log("Все пользователи:", allUsersList);
-        } else if (m.type === 'add_contact_result') {
-            if (m.success) { showToast(m.text); document.getElementById('new-contact-name').value = ''; } else showToast(m.error, true);
-        } else if (m.type === 'delete_contact_result') {
-            showToast(m.text);
-        } else if (m.type === 'message_error') {
-            showToast(m.error || 'Ошибка отправки', true);
-        } else if (m.type === 'history') {
-            showMessage(m.from, m.text, m.imageData, m.sticker, false);
-        } else if (m.type === 'message') {
-            showMessage(m.from, m.text, m.imageData, m.sticker, m.from === myName);
-        }
-    }
-
-    function showMessage(f, t, img, st, me) {
-        var div = document.getElementById('messages'), d = document.createElement('div');
-        d.className = 'message ' + (me ? 'out' : 'in');
-        var c = '';
-        if (!me) c += '<div class="message-name">' + f + '</div>';
-        if (st) c += '<span class="sticker">' + st + '</span>';
-        if (img) c += '<img src="' + img + '" onclick="window.open(this.src)">';
-        if (t) c += t;
-        c += '<div class="message-time">' + new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) + '</div>';
-        d.innerHTML = c;
-        div.appendChild(d);
-        div.scrollTop = div.scrollHeight;
+        ws.onopen = function() {
+            console.log("WebSocket открыт, отправляем логин");
+            ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
+        };
+        ws.onmessage = function(e) {
+            var m = JSON.parse(e.data);
+            console.log("Ответ сервера:", m);
+            if (m.type === 'login_result') {
+                if (m.success) {
+                    document.getElementById('auth').style.display = 'none';
+                    document.getElementById('sidebar').style.display = 'flex';
+                    document.getElementById('chat').style.display = 'flex';
+                    document.getElementById('my-name').textContent = myName;
+                    document.getElementById('login-error').textContent = '';
+                    // Запрашиваем список пользователей после входа
+                    if (ws && ws.readyState === WebSocket.OPEN) {
+                        ws.send(JSON.stringify({ type: 'get_users' }));
+                    }
+                } else {
+                    document.getElementById('login-error').textContent = m.error || 'Ошибка входа';
+                    myName = '';
+                }
+            } else if (m.type === 'contact_list') {
+                savedContacts = m.text ? m.text.split(',') : [];
+                renderContacts();
+            } else if (m.type === 'user_list') {
+                updateOnlineUsers(m.text ? m.text.split(',') : []);
+            }
+        };
+        ws.onerror = function() {
+            document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
+        };
     }
 
     function renderContacts() {
@@ -347,21 +337,6 @@
         if (ws && ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ type: 'search_users', text: q }));
         }
-    }
-
-    function showSearchResults(users) {
-        var r = document.getElementById('search-results');
-        if (!users || users.length === 0) {
-            r.innerHTML = '<div class="no-results">👤 Не найдены</div>';
-            return;
-        }
-        var h = '';
-        users.forEach(u => {
-            if (u !== myName) {
-                h += '<div class="search-result-item"><span>👤 ' + u + '</span><button onclick="addContactByName(\'' + u + '\'); clearSearch();">➕ Добавить</button></div>';
-            }
-        });
-        r.innerHTML = h || '<div class="no-results">👤 Не найдены</div>';
     }
 
     function addContactByName(n) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'add_contact', text: n })); }
@@ -399,7 +374,6 @@
     function logout() { if (ws) ws.close(); location.reload(); }
 
     document.getElementById('msg').addEventListener('keypress', e => { if (e.key === 'Enter') send(); });
-    getAllUsers();
 </script>
 </body>
 </html>

@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
@@ -243,6 +244,7 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			}
 
 		case "login":
+			fmt.Println("Login attempt:", msg.From)
 			if loginUser(msg.From, msg.Password) {
 				client := &Client{Conn: conn, Name: msg.From}
 				mutex.Lock()
@@ -255,8 +257,9 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				allUsers := getAllUsers(msg.From)
 				conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(allUsers, ",")})
 
-				conn.WriteJSON(Message{Type: "login_result", Success: true})
+				conn.WriteJSON(Message{Type: "login_result", Success: true, Text: "Вход выполнен"})
 				broadcastOnlineList()
+				fmt.Println("User logged in:", msg.From, "Online users:", getOnlineUsers())
 			} else {
 				conn.WriteJSON(Message{Type: "login_result", Success: false, Error: "Неверный логин или пароль"})
 			}
@@ -268,6 +271,13 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 		case "get_users":
 			users := getAllUsers("")
 			conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(users, ",")})
+
+		case "message":
+			if !isValidMessage(msg.Text) {
+				conn.WriteJSON(Message{Type: "message_error", Success: false, Error: "Сообщение содержит запрещённые символы"})
+				continue
+			}
+			conn.WriteJSON(Message{Type: "message", Text: msg.Text, Success: true})
 		}
 	}
 }
