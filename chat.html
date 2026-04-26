@@ -2,211 +2,47 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Мессенджер</title>
     <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f0f0f0; height: 100vh; display: flex; }
-
-        #auth {
-            position: fixed;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(135deg, #075e54, #128c7e);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-        }
-        #auth-box {
-            background: white;
-            padding: 40px 30px;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 350px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
-        }
-        #auth-box h2 { margin-top: 0; margin-bottom: 20px; color: #075e54; text-align: center; font-size: 28px; }
-        .tabs { display: flex; margin-bottom: 25px; border-bottom: 2px solid #e0e0e0; }
-        .tab { flex: 1; padding: 12px; text-align: center; cursor: pointer; color: #666; font-weight: 500; }
-        .tab.active { color: #075e54; border-bottom: 2px solid #075e54; margin-bottom: -2px; }
-        .auth-form { display: none; }
-        .auth-form.active { display: block; }
-        input[type="text"], input[type="password"] {
-            width: 100%;
-            padding: 14px;
-            margin: 10px 0;
-            border: 1px solid #ddd;
-            border-radius: 12px;
-            box-sizing: border-box;
-            font-size: 16px;
-            background: #f5f5f5;
-        }
-        input:focus { outline: none; border-color: #075e54; background: white; }
-        .btn {
-            width: 100%;
-            padding: 14px;
-            background: #075e54;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 600;
-            margin-top: 15px;
-        }
-        .btn:hover { background: #054a42; }
-        .error { color: #e74c3c; font-size: 13px; margin-top: 10px; text-align: center; }
-        .success { color: #27ae60; font-size: 13px; margin-top: 10px; text-align: center; }
-
-        #sidebar { width: 320px; background: white; border-right: 1px solid #ccc; overflow-y: auto; display: none; flex-direction: column; }
-        #chat { flex: 1; display: none; flex-direction: column; background: #e5ddd5; }
-        #messages { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; }
-        .message { margin: 8px 0; padding: 10px 14px; border-radius: 18px; max-width: 70%; word-wrap: break-word; }
-        .message img { max-width: 200px; max-height: 200px; border-radius: 10px; cursor: pointer; margin-top: 5px; }
-        .message .sticker { font-size: 48px; }
-        .in { background: white; align-self: flex-start; border-bottom-left-radius: 4px; }
-        .out { background: #dcf8c6; align-self: flex-end; border-bottom-right-radius: 4px; }
-        .message-name { font-size: 11px; font-weight: bold; margin-bottom: 4px; color: #075e54; }
-        .message-time { font-size: 10px; color: #999; margin-top: 4px; text-align: right; }
-        #input { padding: 12px; background: #f0f0f0; display: flex; gap: 8px; align-items: center; border-top: 1px solid #ddd; }
-        #input input { flex: 1; padding: 12px; border: none; border-radius: 25px; background: white; }
-        .contact { padding: 12px 15px; cursor: pointer; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
-        .contact:hover { background: #f5f5f5; }
-        .contact-name { flex: 1; font-weight: 500; }
-        .contact-actions { display: none; gap: 8px; }
-        .contact:hover .contact-actions { display: flex; }
-        .contact-actions button { padding: 4px 8px; font-size: 11px; background: #e74c3c; border: none; border-radius: 8px; cursor: pointer; color: white; }
-        .contact-actions button.add-btn { background: #27ae60; }
-        button { padding: 8px 16px; background: #075e54; color: white; border: none; cursor: pointer; border-radius: 25px; font-weight: 500; }
-        button:hover { background: #054a42; }
-        .contact-section { margin-top: 5px; }
-        .section-title { padding: 10px 16px; background: #f0f0f0; font-weight: 600; font-size: 12px; color: #666; }
-        .search-box { padding: 12px; background: white; border-bottom: 1px solid #e0e0e0; }
-        .search-box input { width: 100%; padding: 10px; border: 1px solid #e0e0e0; border-radius: 25px; box-sizing: border-box; font-size: 14px; background: #f5f5f5; }
-        .search-results { max-height: 250px; overflow-y: auto; background: white; border-bottom: 1px solid #ddd; }
-        .search-result-item { padding: 12px 16px; cursor: pointer; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; }
-        .search-result-item:hover { background: #f5f5f5; }
-        .search-result-item button { padding: 6px 12px; font-size: 12px; background: #27ae60; border: none; border-radius: 8px; cursor: pointer; color: white; }
-        .no-results { padding: 20px; text-align: center; color: #999; font-size: 13px; }
-        .top-bar { padding: 12px 16px; background: #075e54; color: white; display: flex; justify-content: space-between; align-items: center; }
-        .top-bar button { background: rgba(255,255,255,0.2); padding: 6px 12px; font-size: 13px; }
-        .add-contact-panel { padding: 12px; background: white; border-bottom: 1px solid #ddd; display: flex; gap: 8px; }
-        .add-contact-panel input { flex: 1; padding: 10px; border: 1px solid #ddd; border-radius: 25px; font-size: 14px; }
-        .add-contact-panel button { padding: 10px 16px; background: #27ae60; font-size: 13px; border: none; border-radius: 25px; cursor: pointer; color: white; }
-        .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.8); color: white; padding: 10px 20px; border-radius: 30px; z-index: 2000; animation: fadeOut 3s forwards; font-size: 14px; }
-        @keyframes fadeOut { 0% { opacity: 1; } 70% { opacity: 1; } 100% { opacity: 0; visibility: hidden; } }
-        .input-buttons { display: flex; gap: 8px; }
-        .input-buttons button { font-size: 18px; padding: 8px 14px; background: #075e54; }
-        .sticker-panel { position: absolute; bottom: 80px; left: 10px; background: white; border: 1px solid #ccc; border-radius: 16px; padding: 12px; display: none; grid-template-columns: repeat(6, 1fr); gap: 8px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .sticker-panel span { font-size: 36px; cursor: pointer; padding: 8px; text-align: center; border-radius: 12px; }
-        .sticker-panel span:hover { background: #f0f0f0; }
-        #header { padding: 16px 20px; background: #075e54; color: white; font-weight: 600; font-size: 18px; display: flex; align-items: center; gap: 10px; }
-        .group-buttons { margin-left: auto; display: flex; gap: 5px; }
-        .group-buttons button { background: rgba(255,255,255,0.2); padding: 5px 10px; font-size: 12px; border-radius: 20px; }
-        @media (max-width: 768px) {
-            #sidebar { position: fixed; left: -100%; transition: left 0.3s; z-index: 100; height: 100%; width: 280px; }
-            #sidebar.open { left: 0; }
-            .message { max-width: 85%; }
-            .toast { white-space: normal; text-align: center; max-width: 80%; }
-            .menu-btn { display: block; background: none; font-size: 24px; padding: 0; margin-right: 10px; color: white; width: 40px; }
-        }
-        .menu-btn { display: none; background: none; border: none; font-size: 24px; cursor: pointer; }
+        body { font-family: Arial; text-align: center; padding: 20px; background: #075e54; }
+        .container { max-width: 400px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; }
+        input, button { padding: 10px; margin: 5px; width: 90%; }
+        .error { color: red; }
+        .success { color: green; }
+        #chat { display: none; }
+        #sidebar { display: none; }
     </style>
 </head>
 <body>
-
-<div id="auth">
-    <div id="auth-box">
+<div class="container">
+    <div id="auth">
         <h2>💬 Мессенджер</h2>
-        <div class="tabs">
-            <div class="tab active" onclick="showTab('login')">Вход</div>
-            <div class="tab" onclick="showTab('register')">Регистрация</div>
-        </div>
-        <div id="login-form" class="auth-form active">
-            <input type="text" id="login-username" placeholder="Имя пользователя">
-            <input type="password" id="login-password" placeholder="Пароль">
-            <button class="btn" onclick="doLogin()">Войти</button>
-            <div id="login-error" class="error"></div>
-        </div>
-        <div id="register-form" class="auth-form">
-            <input type="text" id="reg-username" placeholder="Придумайте имя (буквы, цифры, пробелы, _)">
-            <input type="password" id="reg-password" placeholder="Придумайте пароль">
-            <input type="password" id="reg-password2" placeholder="Повторите пароль">
-            <button class="btn" onclick="doRegister()">Зарегистрироваться</button>
-            <div id="reg-error" class="error"></div>
-            <div id="reg-success" class="success"></div>
-        </div>
+        <input type="text" id="login-username" placeholder="Имя"><br>
+        <input type="password" id="login-password" placeholder="Пароль"><br>
+        <button onclick="doLogin()">Войти</button>
+        <div id="login-error" class="error"></div>
+        <hr>
+        <h3>Регистрация</h3>
+        <input type="text" id="reg-username" placeholder="Имя (3-20 букв, цифры, пробелы, _)"><br>
+        <input type="password" id="reg-password" placeholder="Пароль"><br>
+        <input type="password" id="reg-password2" placeholder="Повторите"><br>
+        <button onclick="doRegister()">Зарегистрироваться</button>
+        <div id="reg-error" class="error"></div>
+        <div id="reg-success" class="success"></div>
     </div>
-</div>
-
-<div id="sidebar">
-    <div style="padding: 16px 20px; background: #075e54; color: white; display: flex; justify-content: space-between; align-items: center;">
-        <span style="font-size: 20px; font-weight: 600;">💬 Чаты</span>
-        <button onclick="showCreateGroup()" style="background: rgba(255,255,255,0.2);">+ Группа</button>
+    <div id="chat">
+        <h3>Чат</h3>
+        <div id="messages"></div>
+        <input type="text" id="msg" placeholder="Сообщение">
+        <button onclick="sendMsg()">Отправить</button>
+        <button onclick="logout()">Выход</button>
     </div>
-    <div class="top-bar">
-        <span>Вы: <b id="my-name"></b></span>
-        <div>
-            <button onclick="getAllUsers()" style="margin-right: 5px;">👥</button>
-            <button onclick="logout()">Выход</button>
-        </div>
-    </div>
-    <div class="add-contact-panel">
-        <input type="text" id="new-contact-name" placeholder="Имя для добавления">
-        <button onclick="addContact()">➕ Добавить</button>
-    </div>
-    <div class="search-box">
-        <input type="text" id="search-input" placeholder="🔍 Поиск пользователей..." onkeyup="searchUsers()">
-    </div>
-    <div id="search-results" class="search-results" style="display: none;"></div>
-    <div id="contacts"></div>
-</div>
-
-<div id="chat">
-    <div id="header">
-        <button class="menu-btn" onclick="toggleSidebar()">☰</button>
-        <span style="flex:1;">Выберите чат</span>
-    </div>
-    <div id="messages"></div>
-    <div id="input" style="display: none">
-        <input type="text" id="msg" placeholder="Сообщение...">
-        <div class="input-buttons">
-            <button onclick="openStickerPanel()">😊</button>
-            <button onclick="sendPhoto()">📷</button>
-            <button onclick="send()">📤</button>
-        </div>
-    </div>
-</div>
-
-<div id="sticker-panel" class="sticker-panel">
-    <span onclick="sendSticker('😀')">😀</span> <span onclick="sendSticker('😂')">😂</span>
-    <span onclick="sendSticker('🥰')">🥰</span> <span onclick="sendSticker('😍')">😍</span>
-    <span onclick="sendSticker('🎉')">🎉</span> <span onclick="sendSticker('👍')">👍</span>
-    <span onclick="sendSticker('🔥')">🔥</span> <span onclick="sendSticker('💯')">💯</span>
-    <span onclick="sendSticker('❤️')">❤️</span> <span onclick="sendSticker('😢')">😢</span>
-    <span onclick="sendSticker('😱')">😱</span> <span onclick="sendSticker('🤔')">🤔</span>
-    <span onclick="sendSticker('😎')">😎</span> <span onclick="sendSticker('🥳')">🥳</span>
-    <span onclick="sendSticker('💔')">💔</span> <span onclick="sendSticker('✨')">✨</span>
-    <span onclick="sendSticker('⭐')">⭐</span> <span onclick="sendSticker('🍕')">🍕</span>
 </div>
 
 <script>
-    var ws, myName = '', currentChat = '', isGroup = false, savedContacts = [];
-
-    function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); }
-    function showToast(msg, isErr) { var t = document.createElement('div'); t.className = 'toast'; t.textContent = msg; t.style.background = isErr ? '#e74c3c' : '#27ae60'; document.body.appendChild(t); setTimeout(() => t.remove(), 3000); }
-    function openStickerPanel() { var p = document.getElementById('sticker-panel'); p.style.display = p.style.display === 'grid' ? 'none' : 'grid'; }
-    function sendSticker(s) { if (!currentChat) { showToast('Выберите чат', true); return; } if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'message', to: currentChat, sticker: s, text: '' })); document.getElementById('sticker-panel').style.display = 'none'; }
-    function sendPhoto() { if (!currentChat) { showToast('Выберите чат', true); return; } var i = document.createElement('input'); i.type = 'file'; i.accept = 'image/*'; i.onchange = e => { var f = e.target.files[0]; if (f) { var r = new FileReader(); r.onload = ev => { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'message', to: currentChat, imageData: ev.target.result, text: '' })); }; r.readAsDataURL(f); } }; i.click(); }
-    function send() { var t = document.getElementById('msg').value.trim(); if (!t && !currentChat) return; if (!currentChat) { showToast('Выберите чат', true); return; } if (t && ws && ws.readyState === WebSocket.OPEN) { ws.send(JSON.stringify({ type: 'message', to: currentChat, text: t, imageData: '', sticker: '' })); document.getElementById('msg').value = ''; } }
-
-    function showTab(t) {
-        document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
-        document.querySelectorAll('.auth-form').forEach(el => el.classList.remove('active'));
-        if (t === 'login') { document.querySelector('.tab:first-child').classList.add('active'); document.getElementById('login-form').classList.add('active'); }
-        else { document.querySelector('.tab:last-child').classList.add('active'); document.getElementById('register-form').classList.add('active'); }
-        document.getElementById('login-error').textContent = ''; document.getElementById('reg-error').textContent = ''; document.getElementById('reg-success').textContent = '';
-    }
+    var ws = null;
+    var myName = '';
 
     function doRegister() {
         var u = document.getElementById('reg-username').value.trim();
@@ -251,7 +87,6 @@
                 if (m.success) {
                     document.getElementById('reg-success').textContent = 'Регистрация успешна! Теперь войдите.';
                     setTimeout(function() {
-                        showTab('login');
                         document.getElementById('login-username').value = u;
                         temp.close();
                     }, 1500);
@@ -264,116 +99,50 @@
         
         temp.onerror = function() {
             document.getElementById('reg-error').textContent = 'Ошибка подключения';
-            document.getElementById('reg-success').textContent = '';
         };
     }
 
     function doLogin() {
         var u = document.getElementById('login-username').value.trim();
         var p = document.getElementById('login-password').value;
-        if (!u || !p) { document.getElementById('login-error').textContent = 'Введите имя и пароль'; return; }
+        if (!u || !p) {
+            document.getElementById('login-error').textContent = 'Введите имя и пароль';
+            return;
+        }
         myName = u;
         var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws';
         ws = new WebSocket(url);
         ws.onopen = function() {
-            console.log("WebSocket открыт, отправляем логин");
             ws.send(JSON.stringify({ type: 'login', from: u, password: p }));
         };
         ws.onmessage = function(e) {
             var m = JSON.parse(e.data);
-            console.log("Ответ сервера:", m);
             if (m.type === 'login_result') {
                 if (m.success) {
                     document.getElementById('auth').style.display = 'none';
-                    document.getElementById('sidebar').style.display = 'flex';
-                    document.getElementById('chat').style.display = 'flex';
-                    document.getElementById('my-name').textContent = myName;
-                    document.getElementById('login-error').textContent = '';
-                    // Запрашиваем список пользователей после входа
-                    if (ws && ws.readyState === WebSocket.OPEN) {
-                        ws.send(JSON.stringify({ type: 'get_users' }));
-                    }
+                    document.getElementById('chat').style.display = 'block';
                 } else {
-                    document.getElementById('login-error').textContent = m.error || 'Ошибка входа';
-                    myName = '';
+                    document.getElementById('login-error').textContent = m.error;
                 }
-            } else if (m.type === 'contact_list') {
-                savedContacts = m.text ? m.text.split(',') : [];
-                renderContacts();
-            } else if (m.type === 'user_list') {
-                updateOnlineUsers(m.text ? m.text.split(',') : []);
             }
         };
         ws.onerror = function() {
-            document.getElementById('login-error').textContent = 'Не удалось подключиться к серверу';
+            document.getElementById('login-error').textContent = 'Ошибка подключения';
         };
     }
 
-    function renderContacts() {
-        var div = document.getElementById('contacts');
-        if (!div) return;
-        var h = '<div class="contact-section"><div class="section-title">💬 СОХРАНЁННЫЕ</div>';
-        savedContacts.forEach(c => { if (c !== myName) h += '<div class="contact" onclick="selectUser(\'' + c + '\')"><span class="contact-name">📱 ' + c + '</span><div class="contact-actions"><button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + c + '\')">➕</button><button onclick="event.stopPropagation(); deleteContact(\'' + c + '\')">🗑️</button></div></div>'; });
-        if (!savedContacts.length) h += '<div style="padding: 20px; text-align: center; color: #999;">Нет контактов</div>';
-        h += '</div><div class="contact-section"><div class="section-title">🟢 ОНЛАЙН</div><div id="online-users"></div></div>';
-        div.innerHTML = h;
-    }
-
-    function updateOnlineUsers(users) {
-        var onlineDiv = document.getElementById('online-users');
-        if (!onlineDiv) return;
-        var h = '';
-        users.forEach(u => { if (u !== myName) h += '<div class="contact" onclick="selectUser(\'' + u + '\')"><span class="contact-name">🟢 ' + u + '</span><div class="contact-actions"><button class="add-btn" onclick="event.stopPropagation(); addExistingContact(\'' + u + '\')">➕</button></div></div>'; });
-        if (!h) h = '<div style="padding: 20px; text-align: center; color: #999;">Никого нет в сети</div>';
-        onlineDiv.innerHTML = h;
-    }
-
-    function searchUsers() {
-        var q = document.getElementById('search-input').value.trim();
-        var r = document.getElementById('search-results');
-        if (!q) { r.style.display = 'none'; r.innerHTML = ''; return; }
-        r.innerHTML = '<div class="no-results">🔍 Поиск...</div>';
-        r.style.display = 'block';
-        if (ws && ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ type: 'search_users', text: q }));
+    function sendMsg() {
+        var text = document.getElementById('msg').value;
+        if (text && ws && ws.readyState === WebSocket.OPEN) {
+            ws.send(JSON.stringify({ type: 'message', text: text }));
+            document.getElementById('msg').value = '';
         }
     }
 
-    function addContactByName(n) { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'add_contact', text: n })); }
-    function addContact() { var n = document.getElementById('new-contact-name').value.trim(); if (!n) { showToast('Введите имя', true); return; } if (n === myName) { showToast('Нельзя добавить себя', true); return; } addContactByName(n); }
-    function addExistingContact(n) { addContactByName(n); }
-    function deleteContact(n) { if (confirm('Удалить контакт ' + n + '?')) ws.send(JSON.stringify({ type: 'delete_contact', text: n })); }
-    function getAllUsers() { if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'get_users' })); }
-    function clearSearch() { document.getElementById('search-input').value = ''; document.getElementById('search-results').style.display = 'none'; document.getElementById('search-results').innerHTML = ''; }
-
-    function selectUser(n) {
-        currentChat = n;
-        isGroup = false;
-        currentChatName = n;
-        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">💬 ' + n + '</span>';
-        document.getElementById('messages').innerHTML = '';
-        document.getElementById('input').style.display = 'flex';
-        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_dialog', to: n }));
-        clearSearch();
-        if (window.innerWidth <= 768) toggleSidebar();
+    function logout() {
+        if (ws) ws.close();
+        location.reload();
     }
-
-    function selectGroup(id, n) {
-        currentChat = id;
-        isGroup = true;
-        currentChatName = n;
-        document.getElementById('header').innerHTML = '<button class="menu-btn" onclick="toggleSidebar()">☰</button><span style="flex:1;">👥 ' + n + '</span>';
-        document.getElementById('messages').innerHTML = '';
-        document.getElementById('input').style.display = 'flex';
-        if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'select_group', to: id }));
-        clearSearch();
-        if (window.innerWidth <= 768) toggleSidebar();
-    }
-
-    function showCreateGroup() { var n = prompt('Название группы:'); if (!n) return; var m = prompt('Участники (через запятую):'); ws.send(JSON.stringify({ type: 'create_group', groupName: n, members: myName + ',' + m })); }
-    function logout() { if (ws) ws.close(); location.reload(); }
-
-    document.getElementById('msg').addEventListener('keypress', e => { if (e.key === 'Enter') send(); });
 </script>
 </body>
 </html>
