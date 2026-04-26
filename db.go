@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"fmt"
-	"strings"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -252,13 +251,4 @@ func getAllUsers(current string) []string {
 		users = append(users, u)
 	}
 	return users
-}
-
-func broadcastGroupListToAll() {
-	clientsMu.RLock()
-	defer clientsMu.RUnlock()
-	for client := range clients {
-		groups := getUserGroups(client.Name)
-		client.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(groups, ",")})
-	}
 }

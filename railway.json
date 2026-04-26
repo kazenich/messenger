@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "NIXPACKS",
+    "buildCommand": "go build -o server"
+  },
+  "deploy": {
+    "startCommand": "./server",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
