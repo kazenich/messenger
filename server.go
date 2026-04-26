@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"unicode"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
@@ -40,17 +41,26 @@ func initDB() {
 	fmt.Println("DB ready")
 }
 
-func registerUser(username, password string) error {
-	if len(username) > 20 {
-		return fmt.Errorf("username_too_long")
-	}
-	if len(username) < 3 {
-		return fmt.Errorf("username_too_short")
+func isValidUsername(username string) bool {
+	if len(username) < 3 || len(username) > 20 {
+		return false
 	}
 	for _, ch := range username {
-		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
-			return fmt.Errorf("invalid_chars")
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || 
+		     (ch >= '0' && ch <= '9') || ch == '_' ||
+		     (ch >= 'а' && ch <= 'я') || (ch >= 'А' && ch <= 'Я') || ch == 'ё' || ch == 'Ё') {
+			return false
 		}
+	}
+	return true
+}
+
+func registerUser(username, password string) error {
+	if !isValidUsername(username) {
+		if len(username) < 3 || len(username) > 20 {
+			return fmt.Errorf("username_length")
+		}
+		return fmt.Errorf("invalid_chars")
 	}
 	var exists int
 	db.QueryRow("SELECT 1 FROM users WHERE username = ?", username).Scan(&exists)
@@ -92,10 +102,8 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			if err != nil {
 				errMsg := "Ошибка регистрации"
 				switch err.Error() {
-				case "username_too_long":
-					errMsg = "Имя не может быть длиннее 20 символов"
-				case "username_too_short":
-					errMsg = "Имя должно быть минимум 3 символа"
+				case "username_length":
+					errMsg = "Имя должно быть от 3 до 20 символов"
 				case "invalid_chars":
 					errMsg = "Имя может содержать только буквы, цифры и подчёркивание"
 				case "user_exists":
