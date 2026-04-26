@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"time"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
@@ -42,29 +41,25 @@ func initDB() {
 }
 
 func registerUser(username, password string) error {
-    // Ограничение длины ника
-    if len(username) > 20 {
-        return fmt.Errorf("username_too_long")
-    }
-    if len(username) < 3 {
-        return fmt.Errorf("username_too_short")
-    }
-    
-    // Фильтрация: разрешаем только буквы, цифры, подчёркивание
-    for _, ch := range username {
-        if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
-            return fmt.Errorf("invalid_chars")
-        }
-    }
-    
-    var exists int
-    db.QueryRow("SELECT 1 FROM users WHERE username = ?", username).Scan(&exists)
-    if exists == 1 {
-        return fmt.Errorf("user_exists")
-    }
-    hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-    _, err := db.Exec("INSERT INTO users (username, password_hash) VALUES (?, ?)", username, string(hash))
-    return err
+	if len(username) > 20 {
+		return fmt.Errorf("username_too_long")
+	}
+	if len(username) < 3 {
+		return fmt.Errorf("username_too_short")
+	}
+	for _, ch := range username {
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9') || ch == '_') {
+			return fmt.Errorf("invalid_chars")
+		}
+	}
+	var exists int
+	db.QueryRow("SELECT 1 FROM users WHERE username = ?", username).Scan(&exists)
+	if exists == 1 {
+		return fmt.Errorf("user_exists")
+	}
+	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	_, err := db.Exec("INSERT INTO users (username, password_hash) VALUES (?, ?)", username, string(hash))
+	return err
 }
 
 func loginUser(username, password string) bool {
@@ -91,13 +86,22 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 			break
 		}
 
-		fmt.Printf("Получено: %+v\n", msg)
-
 		switch msg.Type {
 		case "register":
 			err := registerUser(msg.From, msg.Password)
 			if err != nil {
-				conn.WriteJSON(Message{Type: "register_result", Success: false, Error: "Имя занято"})
+				errMsg := "Ошибка регистрации"
+				switch err.Error() {
+				case "username_too_long":
+					errMsg = "Имя не может быть длиннее 20 символов"
+				case "username_too_short":
+					errMsg = "Имя должно быть минимум 3 символа"
+				case "invalid_chars":
+					errMsg = "Имя может содержать только буквы, цифры и подчёркивание"
+				case "user_exists":
+					errMsg = "Имя уже занято"
+				}
+				conn.WriteJSON(Message{Type: "register_result", Success: false, Error: errMsg})
 			} else {
 				conn.WriteJSON(Message{Type: "register_result", Success: true, Text: "Регистрация успешна"})
 			}
