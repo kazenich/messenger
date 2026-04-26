@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"unicode"
 
 	"github.com/gorilla/websocket"
 	_ "modernc.org/sqlite"
