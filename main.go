@@ -15,19 +15,10 @@ func main() {
 	})
 	http.HandleFunc("/ws", handleWebSocket)
 
-	// Временный маршрут для просмотра пользователей
-	http.HandleFunc("/users", func(w http.ResponseWriter, r *http.Request) {
-		rows, err := db.Query("SELECT username FROM users")
-		if err != nil {
-			fmt.Fprintln(w, "Ошибка:", err)
-			return
-		}
-		defer rows.Close()
-		for rows.Next() {
-			var u string
-			rows.Scan(&u)
-			fmt.Fprintln(w, u)
-		}
+	// Маршрут для скачивания базы данных
+	http.HandleFunc("/download-db", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Disposition", "attachment; filename=chat.db")
+		http.ServeFile(w, r, "chat.db")
 	})
 
 	port := os.Getenv("PORT")
