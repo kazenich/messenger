@@ -15,6 +15,14 @@ func main() {
 	})
 	http.HandleFunc("/ws", handleWebSocket)
 
+	// ВРЕМЕННЫЙ МАРШРУТ ДЛЯ СБРОСА БД - УДАЛИТЬ ПОСЛЕ ИСПОЛЬЗОВАНИЯ!
+	http.HandleFunc("/reset-db", func(w http.ResponseWriter, r *http.Request) {
+		db.Close()
+		os.Remove("chat.db")
+		initDB()
+		w.Write([]byte("База данных сброшена! Все пользователи и сообщения удалены."))
+	})
+
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
