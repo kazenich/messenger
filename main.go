@@ -15,12 +15,6 @@ func main() {
 	})
 	http.HandleFunc("/ws", handleWebSocket)
 
-	// Маршрут для скачивания базы данных
-	http.HandleFunc("/download-db", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Disposition", "attachment; filename=chat.db")
-		http.ServeFile(w, r, "chat.db")
-	})
-
 	port := os.Getenv("PORT")
 	if port == "" {
 		port = "8080"
