@@ -56,6 +56,15 @@ func initDB() {
 	fmt.Println("База данных SQLite готова")
 }
 
+func ClearAllUsers() {
+	db.Exec("DELETE FROM users")
+	db.Exec("DELETE FROM messages")
+	db.Exec("DELETE FROM contacts")
+	db.Exec("DELETE FROM groups")
+	db.Exec("DELETE FROM group_members")
+	fmt.Println("Все данные удалены")
+}
+
 func isValidUsername(username string) bool {
 	if len(username) < 3 || len(username) > 20 {
 		return false
