@@ -1,0 +1,10 @@
+{
+  "build": {
+    "builder": "NIXPACKS"
+  },
+  "deploy": {
+    "numReplicas": 1,
+    "startCommand": "./messenger",
+    "restartPolicyType": "ON_FAILURE"
+  }
+}
