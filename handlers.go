@@ -45,7 +45,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "login":
 			if loginUser(msg.From, msg.Password) {
-				// Закрываем старое соединение, если оно есть
 				clientsMu.Lock()
 				for c := range clients {
 					if c.Name == msg.From {
@@ -119,8 +118,11 @@ func handleChat(client *Client) {
 		case "select_dialog":
 			client.CurrentDialog = msg.To
 			client.IsGroup = false
+			fmt.Printf("[CHAT] select_dialog: user=%s, dialog=%s\n", client.Name, msg.To)
 			history := getPrivateHistory(client.Name, msg.To)
+			fmt.Printf("[CHAT] history count: %d\n", len(history))
 			for _, h := range history {
+				fmt.Printf("[CHAT] sending history: %+v\n", h)
 				client.Conn.WriteJSON(h)
 			}
 
