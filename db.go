@@ -54,6 +54,11 @@ func initDB() {
 	)`)
 
 	fmt.Println("База данных SQLite готова")
+	
+	// Проверим, сколько сообщений в БД
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM messages").Scan(&count)
+	fmt.Printf("[DEBUG] В БД %d сообщений\n", count)
 }
 
 func isValidUsername(username string) bool {
@@ -101,39 +106,58 @@ func loginUser(username, password string) bool {
 }
 
 func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
-	db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
+	fmt.Printf("[СОХРАНЕНИЕ] from=%s, to=%s, text=%s, isGroup=%v, groupID=%s\n", from, to, text, isGroup, groupID)
+	result, err := db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
 		from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroup, groupID)
+	if err != nil {
+		fmt.Println("[СОХРАНЕНИЕ] Ошибка:", err)
+	} else {
+		id, _ := result.LastInsertId()
+		fmt.Printf("[СОХРАНЕНИЕ] Успешно! ID=%d\n", id)
+	}
 }
 
 func getPrivateHistory(u1, u2 string) []Message {
-	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
+	fmt.Printf("[ИСТОРИЯ] Запрос для %s и %s\n", u1, u2)
+	rows, err := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
 		WHERE is_group = 0 AND ((from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?)) 
 		ORDER BY id ASC LIMIT 50`, u1, u2, u2, u1)
+	if err != nil {
+		fmt.Println("[ИСТОРИЯ] Ошибка запроса:", err)
+		return nil
+	}
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
 		var m Message
 		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
-		m.Text = sanitizeText(m.Text)
 		m.Type = "history"
 		msgs = append(msgs, m)
+		fmt.Printf("[ИСТОРИЯ] Сообщение от %s: %s\n", m.From, m.Text)
 	}
+	fmt.Printf("[ИСТОРИЯ] Найдено %d сообщений\n", len(msgs))
 	return msgs
 }
 
 func getGroupHistory(groupID string) []Message {
-	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
+	fmt.Printf("[ИСТОРИЯ ГРУППЫ] Запрос для groupID=%s\n", groupID)
+	rows, err := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
 		WHERE is_group = 1 AND group_id = ? ORDER BY id ASC LIMIT 50`, groupID)
+	if err != nil {
+		fmt.Println("[ИСТОРИЯ ГРУППЫ] Ошибка запроса:", err)
+		return nil
+	}
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
 		var m Message
 		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
-		m.Text = sanitizeText(m.Text)
 		m.Type = "history"
 		msgs = append(msgs, m)
+		fmt.Printf("[ИСТОРИЯ ГРУППЫ] Сообщение от %s: %s\n", m.From, m.Text)
 	}
+	fmt.Printf("[ИСТОРИЯ ГРУППЫ] Найдено %d сообщений\n", len(msgs))
 	return msgs
 }
 
