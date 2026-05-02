@@ -45,6 +45,17 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 		case "login":
 			if loginUser(msg.From, msg.Password) {
+				// Закрываем старое соединение, если оно есть
+				clientsMu.Lock()
+				for c := range clients {
+					if c.Name == msg.From {
+						c.Conn.Close()
+						delete(clients, c)
+						break
+					}
+				}
+				clientsMu.Unlock()
+
 				client := &Client{Conn: conn, Name: msg.From}
 				clientsMu.Lock()
 				clients[client] = true
