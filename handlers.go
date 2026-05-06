@@ -143,6 +143,34 @@ func handleChat(client *Client) {
 				GroupName: creator,
 			})
 
+		case "get_contacts":
+			contacts := getContacts(client.Name)
+			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+
+		case "search_users":
+			users := searchUsers(msg.Text, client.Name)
+			client.Conn.WriteJSON(Message{Type: "search_results", Text: strings.Join(users, ",")})
+
+		case "add_contact":
+			err := addContact(client.Name, msg.Text)
+			if err != nil {
+				client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: false, Error: err.Error()})
+			} else {
+				contacts := getContacts(client.Name)
+				client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+				client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: true, Text: "Контакт добавлен"})
+			}
+
+		case "delete_contact":
+			deleteContact(client.Name, msg.Text)
+			contacts := getContacts(client.Name)
+			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+			client.Conn.WriteJSON(Message{Type: "delete_contact_result", Success: true, Text: "Контакт удалён"})
+
+		case "get_groups":
+			groups := getUserGroups(client.Name)
+			client.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(groups, ",")})
+
 		case "create_group":
 			groupID := createGroup(msg.GroupName, client.Name)
 			members := strings.Split(msg.Members, ",")
@@ -154,6 +182,15 @@ func handleChat(client *Client) {
 			}
 			broadcastGroupListToAll()
 			client.Conn.WriteJSON(Message{Type: "group_created", Success: true})
+
+		case "get_group_members":
+			members := getGroupMembers(msg.To)
+			creator := getGroupCreator(msg.To)
+			client.Conn.WriteJSON(Message{
+				Type:      "member_list",
+				Text:      strings.Join(members, ","),
+				GroupName: creator,
+			})
 
 		case "add_group_member":
 			err := addMemberToGroup(msg.To, msg.Text, client.Name)
@@ -172,39 +209,6 @@ func handleChat(client *Client) {
 				broadcastGroupListToAll()
 				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true, Text: "Участник удалён"})
 			}
-
-		case "get_group_members":
-			members := getGroupMembers(msg.To)
-			creator := getGroupCreator(msg.To)
-			client.Conn.WriteJSON(Message{
-				Type:      "member_list",
-				Text:      strings.Join(members, ","),
-				GroupName: creator,
-			})
-
-		case "search_users":
-			users := searchUsers(msg.Text, client.Name)
-			client.Conn.WriteJSON(Message{Type: "search_results", Text: strings.Join(users, ",")})
-
-		case "get_users":
-			users := getAllUsers(client.Name)
-			client.Conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(users, ",")})
-
-		case "add_contact":
-			err := addContact(client.Name, msg.Text)
-			if err != nil {
-				client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: false, Error: err.Error()})
-			} else {
-				contacts := getContacts(client.Name)
-				client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
-				client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: true, Text: "Контакт добавлен"})
-			}
-
-		case "delete_contact":
-			deleteContact(client.Name, msg.Text)
-			contacts := getContacts(client.Name)
-			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
-			client.Conn.WriteJSON(Message{Type: "delete_contact_result", Success: true, Text: "Контакт удалён"})
 
 		case "message":
 			originalText := msg.Text
