@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"strings"
@@ -245,7 +244,7 @@ func handleChat(client *Client) {
 				clientsMu.RLock()
 				for c := range clients {
 					for _, m := range members {
-						if c.Name == m {
+						if c.Name == m && c.Name != client.Name {
 							c.Conn.WriteJSON(Message{
 								From:      client.Name,
 								Text:      originalText,
