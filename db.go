@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -55,7 +56,110 @@ func initDB() {
 
 	fmt.Println("База данных SQLite готова")
 	
-	// Проверим, сколько сообщений в БД
+	var count int
+	db.QueryRow("SELECT COUNT(*) FROM messages").Scan(&count)
+	fmt.Printf("[DEBUG] В БД %d сообщений\n", count)
+}
+
+func isValidUsername(username string) bool {
+	if len(username) < 3 || len(username) > 20 {
+		return false
+	}
+	for _, ch := range username {
+		if ch == ' ' {
+			continue
+		}
+		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
+			(ch >= '0' && ch <= '9') || ch == '_' ||
+			(ch >= 'а' && ch <= 'я') || (ch >= 'А' && ch <= 'Я') || ch == 'ё' || ch == 'Ё') {
+			return false
+		}
+	}
+	return true
+}
+
+func registerUser(username, password string) error {
+	if !isValidUsername(username) {
+		if len(username) < 3 || len(username) > 20 {
+			return fmt.Errorf("username_length")
+		}
+		return fmt.Errorf("invalid_chars")
+	}
+	var exists int
+	db.QueryRow("SELECT 1 FROM users WHERE username = ?", username).Scan(&exists)
+	if exists == 1 {
+		return fmt.Errorf("user_exists")
+	}
+	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	_, err := db.Exec("INSERT INTO users (username, password_hash) VALUES (?, ?)", username, string(hash))
+	return err
+}
+
+func loginUser(username, password string) bool {
+	var hash string
+	err := db.QueryRow("SELECT password_hash FROM users WHERE username = ?", username).Scan(&hash)
+	if err != nil {
+		return false
+	}
+cat > db.go << 'EOF'
+package main
+
+import (
+	"database/sql"
+	"fmt"
+	"log"
+	"time"
+
+	_ "modernc.org/sqlite"
+	"golang.org/x/crypto/bcrypt"
+)
+
+var db *sql.DB
+
+func initDB() {
+	var err error
+	db, err = sql.Open("sqlite", "./chat.db")
+	if err != nil {
+		panic(err)
+	}
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS users (
+		username TEXT PRIMARY KEY,
+		password_hash TEXT
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS messages (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		from_user TEXT,
+		to_user TEXT,
+		text TEXT,
+		image_data TEXT,
+		sticker TEXT,
+		time TEXT,
+		is_group INTEGER DEFAULT 0,
+		group_id TEXT
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS groups (
+		id TEXT PRIMARY KEY,
+		name TEXT,
+		creator TEXT
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS group_members (
+		group_id TEXT,
+		user_name TEXT,
+		PRIMARY KEY (group_id, user_name)
+	)`)
+
+	db.Exec(`CREATE TABLE IF NOT EXISTS contacts (
+		user_name TEXT,
+		contact_name TEXT,
+		PRIMARY KEY (user_name, contact_name)
+	)`)
+
+	fmt.Println("База данных SQLite готова")
+	
 	var count int
 	db.QueryRow("SELECT COUNT(*) FROM messages").Scan(&count)
 	fmt.Printf("[DEBUG] В БД %d сообщений\n", count)
@@ -254,14 +358,23 @@ func deleteContact(user, contact string) {
 }
 
 func searchUsers(query, current string) []string {
-	rows, _ := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", current)
+	log.Printf("[ПОИСК] Запрос: '%s', текущий пользователь: '%s'", query, current)
+	
+	rows, err := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", current)
+	if err != nil {
+		log.Printf("[ПОИСК] Ошибка запроса: %v", err)
+		return []string{}
+	}
 	defer rows.Close()
+	
 	var users []string
 	for rows.Next() {
 		var u string
 		rows.Scan(&u)
 		users = append(users, u)
 	}
+	
+	log.Printf("[ПОИСК] Найдено пользователей: %d -> %v", len(users), users)
 	return users
 }
 
