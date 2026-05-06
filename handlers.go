@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -16,15 +17,22 @@ var upgrader = websocket.Upgrader{
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
+		log.Printf("Ошибка апгрейда: %v", err)
 		return
 	}
+	defer conn.Close()
+
+	log.Printf("WebSocket соединение установлено")
 
 	for {
 		var msg Message
 		err := conn.ReadJSON(&msg)
 		if err != nil {
+			log.Printf("Ошибка чтения: %v", err)
 			return
 		}
+
+		log.Printf("Получено: type=%s from=%s text=%s", msg.Type, msg.From, msg.Text)
 
 		switch msg.Type {
 		case "register":
@@ -66,9 +74,6 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 				groups := getUserGroups(msg.From)
 				conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(groups, ",")})
-
-				allUsers := getAllUsers(msg.From)
-				conn.WriteJSON(Message{Type: "user_list", Text: strings.Join(allUsers, ",")})
 
 				conn.WriteJSON(Message{Type: "login_result", Success: true})
 				broadcastOnlineList()
@@ -119,11 +124,8 @@ func handleChat(client *Client) {
 		case "select_dialog":
 			client.CurrentDialog = msg.To
 			client.IsGroup = false
-			fmt.Printf("[CHAT] select_dialog: user=%s, dialog=%s\n", client.Name, msg.To)
 			history := getPrivateHistory(client.Name, msg.To)
-			fmt.Printf("[CHAT] history count: %d\n", len(history))
 			for _, h := range history {
-				fmt.Printf("[CHAT] sending history: %+v\n", h)
 				client.Conn.WriteJSON(h)
 			}
 
@@ -171,6 +173,15 @@ func handleChat(client *Client) {
 				broadcastGroupListToAll()
 				client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true, Text: "Участник удалён"})
 			}
+
+		case "get_group_members":
+			members := getGroupMembers(msg.To)
+			creator := getGroupCreator(msg.To)
+			client.Conn.WriteJSON(Message{
+				Type:      "member_list",
+				Text:      strings.Join(members, ","),
+				GroupName: creator,
+			})
 
 		case "search_users":
 			users := searchUsers(msg.Text, client.Name)
@@ -234,7 +245,7 @@ func handleChat(client *Client) {
 				clientsMu.RLock()
 				for c := range clients {
 					for _, m := range members {
-						if c.Name == m && c.CurrentDialog == client.CurrentDialog && c.IsGroup {
+						if c.Name == m {
 							c.Conn.WriteJSON(Message{
 								From:      client.Name,
 								Text:      originalText,
