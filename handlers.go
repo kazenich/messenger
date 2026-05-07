@@ -16,44 +16,36 @@ var upgrader = websocket.Upgrader{
 func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
-		log.Printf("Ошибка апгрейда: %v", err)
 		return
 	}
 
-	log.Printf("WebSocket соединение установлено с %s", r.RemoteAddr)
+	log.Printf("WebSocket соединение установлено")
 
 	for {
 		var msg Message
 		err := conn.ReadJSON(&msg)
 		if err != nil {
-			log.Printf("Ошибка чтения JSON: %v", err)
+			log.Printf("Ошибка чтения: %v", err)
 			conn.Close()
 			return
 		}
 
-		log.Printf("Получено: type=%s from=%s text=%s", msg.Type, msg.From, msg.Text)
+		log.Printf("type=%s from=%s password=%s text=%s", msg.Type, msg.From, msg.Password, msg.Text)
 
 		switch msg.Type {
 		case "register":
-			log.Printf("Регистрация: %s", msg.From)
+			log.Printf("Регистрация: user=%s pass=%s", msg.From, msg.Password)
 			err := registerUser(msg.From, msg.Password)
 			if err != nil {
-				errMsg := "Ошибка регистрации"
-				if err.Error() == "user_exists" {
-					errMsg = "Имя уже занято"
-				}
-				log.Printf("Ошибка регистрации: %s", errMsg)
-				conn.WriteJSON(Message{Type: "register_result", Success: false, Error: errMsg})
+				log.Printf("Ошибка: %v", err)
+				conn.WriteJSON(Message{Type: "register_result", Success: false, Error: "Имя занято"})
 			} else {
-				log.Printf("Регистрация успешна: %s", msg.From)
-				conn.WriteJSON(Message{Type: "register_result", Success: true, Text: "Регистрация успешна"})
+				conn.WriteJSON(Message{Type: "register_result", Success: true})
 			}
 
 		case "login":
-			log.Printf("Вход: %s", msg.From)
+			log.Printf("Вход: user=%s pass=%s", msg.From, msg.Password)
 			if loginUser(msg.From, msg.Password) {
-				log.Printf("Вход успешен: %s", msg.From)
-
 				clientsMu.Lock()
 				for c := range clients {
 					if c.Name == msg.From {
@@ -73,12 +65,10 @@ func handleWebSocket(w http.ResponseWriter, r *http.Request) {
 				conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(getUserGroups(msg.From), ",")})
 				conn.WriteJSON(Message{Type: "login_result", Success: true})
 				broadcastOnlineList()
-
 				handleChat(client)
 				return
-			} else {
-				conn.WriteJSON(Message{Type: "login_result", Success: false, Error: "Неверный логин или пароль"})
 			}
+			conn.WriteJSON(Message{Type: "login_result", Success: false, Error: "Неверный логин или пароль"})
 
 		case "search_users":
 			users := searchUsers(msg.Text, "")
@@ -110,22 +100,19 @@ func handleChat(client *Client) {
 		case "select_dialog":
 			client.CurrentDialog = msg.To
 			client.IsGroup = false
-			history := getPrivateHistory(client.Name, msg.To)
-			for _, h := range history {
+			for _, h := range getPrivateHistory(client.Name, msg.To) {
 				client.Conn.WriteJSON(h)
 			}
 
 		case "select_group":
 			client.CurrentDialog = msg.To
 			client.IsGroup = true
-			history := getGroupHistory(msg.To)
-			for _, h := range history {
+			for _, h := range getGroupHistory(msg.To) {
 				client.Conn.WriteJSON(h)
 			}
-			members := getGroupMembers(msg.To)
-			creator := getGroupCreator(msg.To)
 			client.Conn.WriteJSON(Message{
-				Type: "member_list", Text: strings.Join(members, ","), GroupName: creator,
+				Type: "member_list", Text: strings.Join(getGroupMembers(msg.To), ","),
+				GroupName: getGroupCreator(msg.To),
 			})
 
 		case "search_users":
@@ -133,52 +120,39 @@ func handleChat(client *Client) {
 			client.Conn.WriteJSON(Message{Type: "search_results", Text: strings.Join(users, ",")})
 
 		case "get_contacts":
-			contacts := getContacts(client.Name)
-			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(getContacts(client.Name), ",")})
 
 		case "add_contact":
 			addContact(client.Name, msg.Text)
-			contacts := getContacts(client.Name)
-			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
-			client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: true, Text: "Контакт добавлен"})
-
-		case "delete_contact":
-			deleteContact(client.Name, msg.Text)
-			contacts := getContacts(client.Name)
-			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(contacts, ",")})
+			client.Conn.WriteJSON(Message{Type: "add_contact_result", Success: true})
+			client.Conn.WriteJSON(Message{Type: "contact_list", Text: strings.Join(getContacts(client.Name), ",")})
 
 		case "message":
 			saveMessage(client.Name, msg.To, msg.Text, msg.ImageData, msg.Sticker, client.IsGroup, client.CurrentDialog)
-
 			client.Conn.WriteJSON(Message{
-				From: client.Name, Text: msg.Text, ImageData: msg.ImageData,
-				Sticker: msg.Sticker, Time: msg.Time, Type: "message", IsGroup: client.IsGroup,
+				From: client.Name, Text: msg.Text, Sticker: msg.Sticker,
+				Time: msg.Time, Type: "message", IsGroup: client.IsGroup,
 			})
-
 			if !client.IsGroup {
 				clientsMu.RLock()
 				for c := range clients {
 					if c.Name == msg.To {
 						c.Conn.WriteJSON(Message{
-							From: client.Name, Text: msg.Text, ImageData: msg.ImageData,
-							Sticker: msg.Sticker, Time: msg.Time, Type: "message", IsGroup: false,
+							From: client.Name, Text: msg.Text, Sticker: msg.Sticker,
+							Time: msg.Time, Type: "message",
 						})
 						break
 					}
 				}
 				clientsMu.RUnlock()
-				addContact(client.Name, msg.To)
-				addContact(msg.To, client.Name)
 			}
 
 		case "get_groups":
-			groups := getUserGroups(client.Name)
-			client.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(groups, ",")})
+			client.Conn.WriteJSON(Message{Type: "group_list", Text: strings.Join(getUserGroups(client.Name), ",")})
 
 		case "create_group":
 			groupID := createGroup(msg.GroupName, client.Name)
-			members := strings.Split(msg.Members, ",")
-			for _, m := range members {
+			for _, m := range strings.Split(msg.Members, ",") {
 				m = strings.TrimSpace(m)
 				if m != "" && m != client.Name {
 					addMemberToGroup(groupID, m, client.Name)
@@ -188,19 +162,18 @@ func handleChat(client *Client) {
 			client.Conn.WriteJSON(Message{Type: "group_created", Success: true})
 
 		case "get_group_members":
-			members := getGroupMembers(msg.To)
-			creator := getGroupCreator(msg.To)
 			client.Conn.WriteJSON(Message{
-				Type: "member_list", Text: strings.Join(members, ","), GroupName: creator,
+				Type: "member_list", Text: strings.Join(getGroupMembers(msg.To), ","),
+				GroupName: getGroupCreator(msg.To),
 			})
 
 		case "add_group_member":
 			addMemberToGroup(msg.To, msg.Text, client.Name)
-			client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true, Text: "Участник добавлен"})
+			client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true})
 
 		case "remove_group_member":
 			removeMemberFromGroup(msg.To, msg.Text, client.Name)
-			client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true, Text: "Участник удалён"})
+			client.Conn.WriteJSON(Message{Type: "group_action_result", Success: true})
 		}
 	}
 }

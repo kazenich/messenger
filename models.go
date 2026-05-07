@@ -23,4 +23,7 @@ type Message struct {
 	Error     string `json:"error"`
 	ImageData string `json:"imageData"`
 	Sticker   string `json:"sticker"`
+	FileData  string `json:"fileData"`
+	FileName  string `json:"fileName"`
+	FileType  string `json:"fileType"`
 }
