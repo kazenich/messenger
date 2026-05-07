@@ -38,10 +38,15 @@ func main() {
 		defer rows.Close()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, "<h1>Пользователи</h1>")
+		var count int
 		for rows.Next() {
 			var u string
 			rows.Scan(&u)
 			fmt.Fprintf(w, "%s<br>", u)
+			count++
+		}
+		if count == 0 {
+			fmt.Fprint(w, "Нет пользователей")
 		}
 	})
 
@@ -54,11 +59,16 @@ func main() {
 		defer rows.Close()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, "<h1>Сообщения</h1>")
+		var count int
 		for rows.Next() {
 			var id int
 			var from, to, text, time string
 			rows.Scan(&id, &from, &to, &text, &time)
 			fmt.Fprintf(w, "[%d] %s -> %s: %s (%s)<br>", id, from, to, text, time)
+			count++
+		}
+		if count == 0 {
+			fmt.Fprint(w, "Нет сообщений")
 		}
 	})
 
@@ -70,8 +80,7 @@ func main() {
 		}
 		users := searchUsers(query, "")
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		fmt.Fprintf(w, "<h1>Поиск: '%s'</h1>", query)
-		fmt.Fprintf(w, "Найдено: %d<br>", len(users))
+		fmt.Fprintf(w, "Поиск: '%s' - Найдено: %d<br>", query, len(users))
 		for _, u := range users {
 			fmt.Fprintf(w, "%s<br>", u)
 		}
@@ -92,7 +101,5 @@ func main() {
 	}
 
 	log.Printf("Сервер запущен на порту %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatal(err)
-	}
+	http.ListenAndServe(":"+port, nil)
 }
