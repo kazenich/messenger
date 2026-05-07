@@ -3,6 +3,7 @@ package main
 import (
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -79,15 +80,33 @@ func loginUser(username, password string) bool {
 }
 
 func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
-	db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
+	log.Printf("[SAVE] from=%s to=%s text=%s isGroup=%v", from, to, text, isGroup)
+	
+	isGroupInt := 0
+	if isGroup {
+		isGroupInt = 1
+	}
+	
+	result, err := db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
-		from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroup, groupID)
+		from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroupInt, groupID)
+	if err != nil {
+		log.Printf("[SAVE ERROR] %v", err)
+	} else {
+		id, _ := result.LastInsertId()
+		log.Printf("[SAVE OK] id=%d", id)
+	}
 }
 
 func getPrivateHistory(u1, u2 string) []Message {
-	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
+	log.Printf("[HISTORY] %s <-> %s", u1, u2)
+	rows, err := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
 		WHERE is_group = 0 AND ((from_user = $1 AND to_user = $2) OR (from_user = $3 AND to_user = $4)) 
 		ORDER BY id ASC LIMIT 50`, u1, u2, u2, u1)
+	if err != nil {
+		log.Printf("[HISTORY ERROR] %v", err)
+		return nil
+	}
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
@@ -96,6 +115,7 @@ func getPrivateHistory(u1, u2 string) []Message {
 		m.Type = "history"
 		msgs = append(msgs, m)
 	}
+	log.Printf("[HISTORY] найдено %d", len(msgs))
 	return msgs
 }
 
