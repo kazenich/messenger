@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"log"
+	"os"
 	"time"
 
 	_ "modernc.org/sqlite"
@@ -14,7 +15,10 @@ var db *sql.DB
 
 func initDB() {
 	var err error
-	db, err = sql.Open("sqlite", "./chat.db")
+	
+	os.MkdirAll("/app/data", 0755)
+	
+	db, err = sql.Open("sqlite", "/app/data/chat.db")
 	if err != nil {
 		panic(err)
 	}
@@ -61,30 +65,7 @@ func initDB() {
 	fmt.Printf("[DEBUG] В БД %d сообщений\n", count)
 }
 
-func isValidUsername(username string) bool {
-	if len(username) < 3 || len(username) > 20 {
-		return false
-	}
-	for _, ch := range username {
-		if ch == ' ' {
-			continue
-		}
-		if !((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') ||
-			(ch >= '0' && ch <= '9') || ch == '_' ||
-			(ch >= 1040 && ch <= 1103) || ch == 1105 || ch == 1025) {
-			return false
-		}
-	}
-	return true
-}
-
 func registerUser(username, password string) error {
-	if !isValidUsername(username) {
-		if len(username) < 3 || len(username) > 20 {
-			return fmt.Errorf("username_length")
-		}
-		return fmt.Errorf("invalid_chars")
-	}
 	var exists int
 	db.QueryRow("SELECT 1 FROM users WHERE username = ?", username).Scan(&exists)
 	if exists == 1 {
@@ -101,32 +82,18 @@ func loginUser(username, password string) bool {
 	if err != nil {
 		return false
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
+	return bcrypt.CompareHashAndPassword([]byte(hash), []byte(password)) == nil
 }
 
 func saveMessage(from, to, text, imageData, sticker string, isGroup bool, groupID string) {
-	fmt.Printf("[СОХРАНЕНИЕ] from=%s, to=%s, text=%s, isGroup=%v, groupID=%s\n", from, to, text, isGroup, groupID)
-	result, err := db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroup, groupID)
-	if err != nil {
-		fmt.Println("[СОХРАНЕНИЕ] Ошибка:", err)
-	} else {
-		id, _ := result.LastInsertId()
-		fmt.Printf("[СОХРАНЕНИЕ] Успешно! ID=%d\n", id)
-	}
+	db.Exec(`INSERT INTO messages (from_user, to_user, text, image_data, sticker, time, is_group, group_id) 
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, from, to, text, imageData, sticker, time.Now().Format("15:04"), isGroup, groupID)
 }
 
 func getPrivateHistory(u1, u2 string) []Message {
-	fmt.Printf("[ИСТОРИЯ] Запрос для %s и %s\n", u1, u2)
-	rows, err := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
+	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
 		WHERE is_group = 0 AND ((from_user = ? AND to_user = ?) OR (from_user = ? AND to_user = ?)) 
 		ORDER BY id ASC LIMIT 50`, u1, u2, u2, u1)
-	if err != nil {
-		fmt.Println("[ИСТОРИЯ] Ошибка запроса:", err)
-		return nil
-	}
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
@@ -134,20 +101,13 @@ func getPrivateHistory(u1, u2 string) []Message {
 		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
 		m.Type = "history"
 		msgs = append(msgs, m)
-		fmt.Printf("[ИСТОРИЯ] Сообщение от %s: %s\n", m.From, m.Text)
 	}
-	fmt.Printf("[ИСТОРИЯ] Найдено %d сообщений\n", len(msgs))
 	return msgs
 }
 
 func getGroupHistory(groupID string) []Message {
-	fmt.Printf("[ИСТОРИЯ ГРУППЫ] Запрос для groupID=%s\n", groupID)
-	rows, err := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
+	rows, _ := db.Query(`SELECT from_user, text, image_data, sticker, time FROM messages 
 		WHERE is_group = 1 AND group_id = ? ORDER BY id ASC LIMIT 50`, groupID)
-	if err != nil {
-		fmt.Println("[ИСТОРИЯ ГРУППЫ] Ошибка запроса:", err)
-		return nil
-	}
 	defer rows.Close()
 	var msgs []Message
 	for rows.Next() {
@@ -155,9 +115,7 @@ func getGroupHistory(groupID string) []Message {
 		rows.Scan(&m.From, &m.Text, &m.ImageData, &m.Sticker, &m.Time)
 		m.Type = "history"
 		msgs = append(msgs, m)
-		fmt.Printf("[ИСТОРИЯ ГРУППЫ] Сообщение от %s: %s\n", m.From, m.Text)
 	}
-	fmt.Printf("[ИСТОРИЯ ГРУППЫ] Найдено %d сообщений\n", len(msgs))
 	return msgs
 }
 
@@ -179,11 +137,6 @@ func addMemberToGroup(groupID, userName, creator string) error {
 }
 
 func removeMemberFromGroup(groupID, userName, creator string) error {
-	var exists int
-	db.QueryRow("SELECT 1 FROM groups WHERE id = ? AND creator = ?", groupID, creator).Scan(&exists)
-	if exists == 0 {
-		return fmt.Errorf("not_creator")
-	}
 	if userName == creator {
 		return fmt.Errorf("cannot_remove_creator")
 	}
@@ -228,11 +181,6 @@ func getUserGroups(username string) []string {
 }
 
 func addContact(user, contact string) error {
-	var exists int
-	db.QueryRow("SELECT 1 FROM users WHERE username = ?", contact).Scan(&exists)
-	if exists == 0 {
-		return fmt.Errorf("user_not_found")
-	}
 	db.Exec("INSERT OR IGNORE INTO contacts (user_name, contact_name) VALUES (?, ?)", user, contact)
 	return nil
 }
@@ -254,23 +202,16 @@ func deleteContact(user, contact string) {
 }
 
 func searchUsers(query, current string) []string {
-	log.Printf("[ПОИСК] Запрос: '%s', текущий пользователь: '%s'", query, current)
-	
-	rows, err := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", current)
-	if err != nil {
-		log.Printf("[ПОИСК] Ошибка запроса: %v", err)
-		return []string{}
-	}
+	log.Printf("[ПОИСК] Запрос: '%s', текущий: '%s'", query, current)
+	rows, _ := db.Query("SELECT username FROM users WHERE username LIKE ? AND username != ? LIMIT 10", "%"+query+"%", current)
 	defer rows.Close()
-	
 	var users []string
 	for rows.Next() {
 		var u string
 		rows.Scan(&u)
 		users = append(users, u)
 	}
-	
-	log.Printf("[ПОИСК] Найдено пользователей: %d -> %v", len(users), users)
+	log.Printf("[ПОИСК] Найдено: %d -> %v", len(users), users)
 	return users
 }
 
