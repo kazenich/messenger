@@ -38,15 +38,10 @@ func main() {
 		defer rows.Close()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, "<h1>Пользователи</h1>")
-		var count int
 		for rows.Next() {
 			var u string
 			rows.Scan(&u)
 			fmt.Fprintf(w, "%s<br>", u)
-			count++
-		}
-		if count == 0 {
-			fmt.Fprint(w, "Нет пользователей")
 		}
 	})
 
@@ -59,16 +54,11 @@ func main() {
 		defer rows.Close()
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		fmt.Fprint(w, "<h1>Сообщения</h1>")
-		var count int
 		for rows.Next() {
 			var id int
 			var from, to, text, time string
 			rows.Scan(&id, &from, &to, &text, &time)
 			fmt.Fprintf(w, "[%d] %s -> %s: %s (%s)<br>", id, from, to, text, time)
-			count++
-		}
-		if count == 0 {
-			fmt.Fprint(w, "Нет сообщений")
 		}
 	})
 
