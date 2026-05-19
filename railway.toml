@@ -3,8 +3,5 @@ builder = "NIXPACKS"
 
 [deploy]
 numReplicas = 1
-startCommand = "./messenger"
+startCommand = "chmod +x ./messenger && ./messenger"
 restartPolicyType = "ON_FAILURE"
-
-[deploy.volumes]
-db = "/app/data"
