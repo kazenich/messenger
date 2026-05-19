@@ -3,5 +3,5 @@ builder = "NIXPACKS"
 
 [deploy]
 numReplicas = 1
-startCommand = "chmod +x ./messenger && ./messenger"
+startCommand = "./messenger"
 restartPolicyType = "ON_FAILURE"
